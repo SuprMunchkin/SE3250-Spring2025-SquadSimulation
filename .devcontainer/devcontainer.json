@@ -1,0 +1,8 @@
+{
+    "name": "Remi Dot App",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "forwardPorts": [8080],
+    "postCreateCommand": "pip install -r requirements.txt"
+}
