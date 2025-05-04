@@ -1,8 +1,7 @@
 {
-    "name": "Remi Dot App",
-    "build": {
-        "dockerfile": "Dockerfile"
-    },
+    "name": "Flask-app",
+    "dockerfile": "Dockerfile",
+    "appPort": [8080],
     "forwardPorts": [8080],
     "postCreateCommand": "pip install -r requirements.txt"
 }
