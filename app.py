@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, jsonify
 import os
 
 app = Flask(__name__)
@@ -7,17 +7,15 @@ HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Moving Dot</title>
+    <title>Squad Simulation</title>
     <style>
-        body {
-            background-color: white;
-        }
         #container {
             position: relative;
             width: 600px;
             height: 600px;
-            border: 1px solid black;
             margin: 40px auto;
+            border: 1px solid black;
+            background-color: white;
         }
         #dot {
             width: 20px;
@@ -25,8 +23,6 @@ HTML = """
             background-color: red;
             border-radius: 50%;
             position: absolute;
-            left: 0;
-            top: 0;
             transition: left 0.2s ease, top 0.2s ease;
         }
     </style>
@@ -37,31 +33,25 @@ HTML = """
     </div>
 
     <script>
-    const dot = document.getElementById('dot');
-    const path = [
-        [0, 0],
-        [100, 50],
-        [200, 100],
-        [300, 200],
-        [400, 300],
-        [500, 400],
-        [580, 580], // max corner
-        [400, 300],
-        [200, 100],
-        [0, 0]
-    ];
-    let index = 0;
+        const dot = document.getElementById('dot');
+        let path = [];
+        let index = 0;
 
-    function moveDot() {
-        const [x, y] = path[index];
-        dot.style.left = x + 'px';
-        dot.style.top = y + 'px';
-        index = (index + 1) % path.length; // loop
-    }
+        function moveDot() {
+            if (path.length === 0) return;
+            const [x, y] = path[index];
+            dot.style.left = x + 'px';
+            dot.style.top = y + 'px';
+            index = (index + 1) % path.length;
+        }
 
-    setInterval(moveDot, 1000);
-</script>
-
+        fetch('/path')
+            .then(res => res.json())
+            .then(data => {
+                path = data;
+                setInterval(moveDot, 1000);
+            });
+    </script>
 </body>
 </html>
 """
@@ -69,6 +59,19 @@ HTML = """
 @app.route("/")
 def index():
     return render_template_string(HTML)
+
+@app.route("/path")
+def get_path():
+    path = [
+        [0, 0],
+        [100, 50],
+        [200, 100],
+        [300, 200],
+        [400, 300],
+        [500, 400],
+        [580, 580]
+    ]
+    return jsonify(path)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
