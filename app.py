@@ -1,5 +1,8 @@
 from flask import Flask, render_template_string, jsonify
 import os
+import threading
+import time
+import sys
 
 app = Flask(__name__)
 
@@ -62,6 +65,8 @@ def index():
 
 @app.route("/path")
 def get_path():
+    # This is a mock path for demonstration purposes.
+    # We'll want to replace this with logic to generate a path.
     path = [
         [0, 0],
         [100, 50],
@@ -73,6 +78,15 @@ def get_path():
     ]
     return jsonify(path)
 
+#This is a hack to shutdown the app after x seconds, so it doesn't just run forever.
+def shutdown_later(timeout_seconds):
+    def shutdown():
+        time.sleep(timeout_seconds)
+        print(f"\n[INFO] Auto-shutdown triggered after {timeout_seconds} seconds.")
+        sys.exit(0)  # forcefully exit the Flask dev server
+    threading.Thread(target=shutdown, daemon=True).start()
+
 if __name__ == "__main__":
+    #shutdown_later(60)
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
