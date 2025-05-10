@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string, jsonify, request
 from selib import *
 import os
 import threading
@@ -12,13 +12,17 @@ HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Squad Simulation</title>
+    <title>Simulation Control</title>
     <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+        }
         #container {
             position: relative;
             width: 600px;
             height: 600px;
-            margin: 40px auto;
+            margin: 20px auto;
             border: 1px solid black;
             background-color: white;
         }
@@ -30,17 +34,33 @@ HTML = """
             position: absolute;
             transition: left 0.2s ease, top 0.2s ease;
         }
+        #controls {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
+    <h2>Soldier Simulation</h2>
     <div id="container">
         <div id="dot"></div>
     </div>
 
+    <div id="controls">
+        <button onclick="startSimulation()">Start</button>
+        <button onclick="stopSimulation()">Stop</button>
+        <select id="pathSelect">
+            <option value="default">Default Path</option>
+            <option value="zigzag">Zigzag</option>
+        </select>
+        <p id="status">Status: Idle</p>
+    </div>
+
     <script>
         const dot = document.getElementById('dot');
+        const status = document.getElementById('status');
         let path = [];
         let index = 0;
+        let intervalId = null;
 
         function moveDot() {
             if (path.length === 0) return;
@@ -50,12 +70,26 @@ HTML = """
             index = (index + 1) % path.length;
         }
 
-        fetch('/path')
-            .then(res => res.json())
-            .then(data => {
-                path = data;
-                setInterval(moveDot, 1000);
-            });
+        function startSimulation() {
+            stopSimulation(); // in case it's already running
+            const selectedPath = document.getElementById('pathSelect').value;
+            fetch(`/path?name=${selectedPath}`)
+                .then(res => res.json())
+                .then(data => {
+                    path = data;
+                    index = 0;
+                    intervalId = setInterval(moveDot, 1000);
+                    status.textContent = "Status: Running";
+                });
+        }
+
+        function stopSimulation() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+                status.textContent = "Status: Stopped";
+            }
+        }
     </script>
 </body>
 </html>
@@ -67,28 +101,14 @@ def index():
 
 @app.route("/path")
 def get_path():
-    # This is a mock path for demonstration purposes.
-    # We'll want to replace this with logic to generate a path.
-    path = [
-        [0, 0],
-        [100, 50],
-        [200, 100],
-        [300, 200],
-        [400, 300],
-        [500, 400],
-        [580, 580]
-    ]
+    name = request.args.get("name", "default")
+    if name == "zigzag":
+        path = [[0, 0], [100, 100], [0, 200], [100, 300], [0, 400], [100, 500]]
+    else:
+        path = [[0, 0], [100, 50], [200, 100], [300, 200], [400, 300], [580, 580]]
     return jsonify(path)
 
-#This is a hack to shutdown the app after x seconds, so it doesn't just run forever.
-def shutdown_later(timeout_seconds):
-    def shutdown():
-        time.sleep(timeout_seconds)
-        print(f"\n[INFO] Auto-shutdown triggered after {timeout_seconds} seconds.")
-        sys.exit(0)  # forcefully exit the Flask dev server
-    threading.Thread(target=shutdown, daemon=True).start()
 
 if __name__ == "__main__":
-    #shutdown_later(60)
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
