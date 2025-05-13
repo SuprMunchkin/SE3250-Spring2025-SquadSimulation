@@ -1,21 +1,52 @@
 import matplotlib.pyplot as plt
 from random import uniform, choice, randint, random
-import ipywidgets as widgets
 from IPython.display import display, clear_output
+import math
 
-class GoodUnit:
+class Unit:
+    def __init__(self, x, y, num_people, lethality, defense):
+        self.x = x
+        self.y = y
+        self.num_people = num_people
+        self.lethality = lethality
+        self.defense = defense
+        self.history = [(x, y)]
+        self.visited = {(x, y)}
+
+    def get_coordinates(self):
+        return self.x, self.y
+
+    def get_numPeople(self):
+        return self.num_people
+
+    def get_lethality(self):
+        return self.lethality
+
+    def get_defense(self):
+        return self.defense
+
+    def move(self):
+        dx = uniform(-0.05, 0.05)
+        dy = uniform(-0.05, 0.05)
+        self.x = min(max(self.x + dx, 0), 1)
+        self.y = min(max(self.y + dy, 0), 1)
+        self.history.append((self.x, self.y))
+        self.visited.add((round(self.x, 2), round(self.y, 2)))
+        return True
+
+class GoodUnit(Unit):
     def __init__(self, armor, energy, num_people):
+        super().__init__(0, 0, num_people, lethality=0.90, defense=0.0)  # Start at the top-left corner
         self.armor = armor
         self.energy = energy
-        self.num_people = num_people
-        self.history = []
-        self.visited = set()
         self.move_counter = 0
-        self.lethality = 0.90
-        self.defense = 0.0
+        self.exiting = False
+        self.angle = 0  # Start angle for polar coordinates
+        self.radius = 0  # Start radius at 0
+        self.max_radius = uniform(0.5, 1)  # Random maximum radius
+        print(f"Max radius: {self.max_radius}")
+        self.increasing = True  # Flag to indicate whether the radius is increasing
         self._adjust_for_armor()
-        self._start_at_random_edge()
-        self.exiting = False  # flag for exit mode
 
     def _adjust_for_armor(self):
         if self.armor == 'Light':
@@ -31,78 +62,49 @@ class GoodUnit:
             self.energy_depletion_factor = 0.07
             self.defense = 0.50
 
-    def _start_at_random_edge(self):
-        edge = choice(['left', 'right', 'top', 'bottom'])
-        if edge == 'left':
-            self.x = 0
-            self.y = uniform(0, 1)
-        elif edge == 'right':
-            self.x = 1
-            self.y = uniform(0, 1)
-        elif edge == 'top':
-            self.x = uniform(0, 1)
-            self.y = 1
-        else:
-            self.x = uniform(0, 1)
-            self.y = 0
-        self.history.append((self.x, self.y))
-        self.visited.add((self.x, self.y))
-
-    def _get_closest_edge_point(self):
-        distances = {
-            (0, self.y): self.x,
-            (1, self.y): 1 - self.x,
-            (self.x, 0): self.y,
-            (self.x, 1): 1 - self.y
-        }
-        return min(distances, key=distances.get)
-
-    def _update_lethality(self):
-        if self.energy > 0 and self.water > 0:
-            self.lethality = 0.55
-        elif self.energy > 0 or self.water > 0:
-            self.lethality = 0.35
-        else:
-            self.lethality = 0.15
-
     def move(self):
+        print(f"Move from: radius={self.radius}, angle={self.angle}, increasing={self.increasing}")
+
         if self.energy <= 0 or self.exiting:
-            target_x, target_y = self._get_closest_edge_point()
-            dx = 0.05 if target_x > self.x else -0.05 if target_x < self.x else 0
-            dy = 0.05 if target_y > self.y else -0.05 if target_y < self.y else 0
-
-            self.x = min(max(self.x + dx, 0), 1)
-            self.y = min(max(self.y + dy, 0), 1)
-
-            self.history.append((self.x, self.y))
-            self.visited.add((self.x, self.y))
-            self.move_counter += 1
-            self._update_lethality()
-
-            return not (self.x in (0, 1) or self.y in (0, 1))
-
-        directions = [(-0.05, 0), (0.05, 0), (0, -0.05), (0, 0.05)]
-        possible_moves = []
-
-        for dx, dy in directions:
-            new_x = self.x + dx
-            new_y = self.y + dy
-            if 0 <= new_x <= 1 and 0 <= new_y <= 1:
-                possible_moves.append((new_x, new_y))
-
-        unvisited = [move for move in possible_moves if move not in self.visited]
-        move_choices = unvisited if unvisited else possible_moves
-
-        if not move_choices:
+            print(f"Stopping movement: energy={self.energy}, exiting={self.exiting}")
             return False
 
-        self.x, self.y = choice(move_choices)
+        # Adjust the radius
+        if self.increasing:
+            self.radius += uniform(0.2,0.4)  # Gradually increase the radius
+            if self.radius >= self.max_radius or self.angle >= math.pi / 4:
+                self.increasing = False  # Start decreasing the radius
+        else:
+            self.radius -= uniform(0.2,0.4)  # Gradually decrease the radius
+            if self.radius <= 0 or self.angle >= math.pi / 2:
+                self.radius = 0
+                self.history.append((0,0))
+                self.visited.add((0,0))
+                self.move_counter += 1
+                print("Returned to start.")
+                return False  # Stop movement when the radius reaches 0
+
+        # Increment the angle to trace out a circular path
+        self.angle += uniform(0.1, 0.4)  # Increment angle by a small random value
+        print(f"Move to: radius={self.radius}, angle={self.angle}, increasing={self.increasing}")
+
+        # Convert polar coordinates to Cartesian coordinates
+        new_x = self.radius * math.cos(self.angle)
+        new_y = self.radius * math.sin(self.angle)
+
+        # Ensure the new position is within bounds
+        new_x = min(max(new_x, 0), 1)
+        new_y = min(max(new_y, 0), 1)
+
+        # Update position and history
+        self.x, self.y = new_x, new_y
         self.history.append((self.x, self.y))
-        self.visited.add((self.x, self.y))
+        self.visited.add((round(self.x, 2), round(self.y, 2)))
         self.move_counter += 1
 
-        self.water -= 0.01 * self.move_counter * self.num_people
-        self.energy -= self.energy_depletion_factor * self.move_counter
+        # Decrease water and energy
+        self.water -= 0.01 * self.num_people
+        self.energy -= self.energy_depletion_factor
 
         if self.water <= 0:
             self.water = 0
@@ -111,18 +113,14 @@ class GoodUnit:
         if self.energy <= 0:
             self.energy = 0
 
-        self._update_lethality()
+        print(f"Move: x={self.x}, y={self.y}, energy={self.energy}, water={self.water}")
         return True
 
-class BadUnit:
+class BadUnit(Unit):
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.num_people = randint(30, 50)
-        self.lethality = 0.35
-        self.defense = 0.0
+        super().__init__(x, y, num_people=randint(30, 50), lethality=0.35, defense=0.0)
 
-def battle(good_unit, bad_unit):
+def battle(good_unit: Unit, bad_unit: Unit):
     turns = 0
     good_start = good_unit.num_people
     bad_start = bad_unit.num_people
@@ -141,81 +139,19 @@ def battle(good_unit, bad_unit):
         good_unit.num_people -= int(damage)
         good_unit.num_people = max(0, good_unit.num_people)
 
-    battle_result = f"\n🛡️ Battle Summary:\n"
-    battle_result += f" - Turns: {turns}\n"
-    battle_result += f" - Good Unit Losses: {good_start - good_unit.num_people}\n"
-    battle_result += f" - Bad Unit Losses: {bad_start - bad_unit.num_people}\n"
+    # Prepare battle results as a dictionary
+    battle_result = {
+        "turns": turns,
+        "good_unit_losses": good_start - good_unit.num_people,
+        "bad_unit_losses": bad_start - bad_unit.num_people,
+        "good_unit_remaining": good_unit.num_people,
+        "bad_unit_remaining": bad_unit.num_people,
+        "good_unit_eliminated": good_unit.num_people == 0,
+        "good_unit_exiting": good_unit.num_people <= 30,
+    }
 
-    if good_unit.num_people == 0:
-        battle_result += "\n❌ The good unit has been eliminated!"
-    elif good_unit.num_people <= 30:
+    # Update the good unit's state if necessary
+    if good_unit.num_people <= 30:
         good_unit.exiting = True
+
     return battle_result
-
-# Simulation runner
-def run_simulation(armor, energy, num_people):
-    unit = GoodUnit(armor, energy, num_people)
-    bad_units = []
-    battle_results = ""
-
-    while True:
-        # Move the good unit
-        if not unit.move():
-            break
-
-        # 5% chance to spawn bad unit
-        if random() <= 0.05:
-            bad = BadUnit(unit.x, unit.y)
-            bad_units.append(bad)
-            battle_results += battle(unit, bad)  # Append battle results
-
-            if not unit.num_people > 0:  # Good unit lost
-                break
-
-    # Print all battle summaries
-    clear_output(wait=True)  # Clear previous outputs
-    print(battle_results)  # Print all battle results
-
-    # Plot the simulation path
-    x_vals, y_vals = zip(*unit.history)
-    plt.figure(figsize=(8, 8))
-    plt.plot(x_vals, y_vals, 'bo-', markersize=4, alpha=0.7, label="Good Unit Path")
-
-    if bad_units:
-        bad_x = [b.x for b in bad_units]
-        bad_y = [b.y for b in bad_units]
-        plt.plot(bad_x, bad_y, 'rx', markersize=10, label="Bad Units")
-
-    plt.title(f"Good Unit Path - Moves: {unit.move_counter}")
-    plt.xlabel("X Position")
-    plt.ylabel("Y Position")
-    plt.grid(True)
-    plt.legend()
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-    plt.show()
-
-    print(f"Total Moves: {unit.move_counter}")
-    print(f"Unit Size (Remaining): {unit.num_people}")
-    print(f"Final Energy: {unit.energy:.2f}")
-    print(f"Final Water: {unit.water:.2f}")
-    print(f"Lethality: {unit.lethality:.2f}")
-    print(f"Defense: {unit.defense:.2f}")
-    print(f"Bad Units Spawned: {len(bad_units)}")
-
-# UI Widgets
-armor_options = ['Light', 'Medium', 'Heavy']
-armor_widget = widgets.Dropdown(options=armor_options, value='Light', description='Armor:')
-energy_widget = widgets.FloatSlider(value=100, min=10, max=100, step=1, description='Energy:')
-people_widget = widgets.IntSlider(value=5, min=30, max=50, step=1, description='People:')
-run_button = widgets.Button(description="Run Simulation")
-output = widgets.Output()
-
-def on_button_click(b):
-    with output:
-        run_simulation(armor_widget.value, energy_widget.value, people_widget.value)
-
-run_button.on_click(on_button_click)
-
-# Display interface
-display(armor_widget, energy_widget, people_widget, run_button, output)
