@@ -47,20 +47,89 @@ def attack(blue_patrol, hostile_patrol, env, armor, distance, blue_min_fire_rate
 
     return blue_kills, hostile_kills
 
-def run_simulation(
-    unit_size,
-    armor,
-    terrain_percentages,
-    direction_deviation,
-    grade_std,
-    hostile_stock,
-    env,
-    blue_min_fire_rate,
-    blue_max_fire_rate,
-    hostile_min_fire_rate,
-    hostile_max_fire_rate,
-    verbose=True
-):
-    # ...move your simulation logic here, using the above utility functions...
-    # Return results (e.g., positions, metrics, etc.)
-    pass
+def run_simulation(config, params, fire_rates, verbose=False):
+    start_time = 0
+    stop_time = 4320
+    dt = 1
+    time_steps = np.arange(start_time, stop_time + dt, dt)
+
+    # Initialize blue and hostile patrols
+    blue_patrol = {
+        'stock': params['blue_stock'],
+        'x': np.random.uniform(0, 5000),
+        'y': np.random.uniform(0, 5000),
+        'direction': np.random.uniform(0, 360),
+        'm': np.random.normal(76.6571, 11.06765),
+        'spawn_time': 0,
+        'removal_time': float('inf'),
+        'positions': [],
+        'stock_history': [],
+        'direction_history': [],
+        'total_energy': 0,
+        'active': True,
+        'patrol_time': 0
+    }
+    blue_patrol['positions'].append((blue_patrol['x'], blue_patrol['y']))
+    blue_patrol['stock_history'].append(blue_patrol['stock'])
+    blue_patrol['direction_history'].append(blue_patrol['direction'])
+
+    hostile_patrol = {
+        'stock': params['hostile_stock'],
+        'x': np.random.uniform(0, 5000),
+        'y': np.random.uniform(0, 5000),
+        'positions': [],
+        'stock_history': [params['hostile_stock']],
+        'spawn_time': 0,
+        'removal_time': float('inf')
+    }
+    hostile_patrol['positions'].append((hostile_patrol['x'], hostile_patrol['y']))
+
+    total_blue_kills = 0
+    total_hostile_kills = 0
+    positions = []
+    hostile_positions = []
+    for t in time_steps:
+        if not blue_patrol['active'] or hostile_patrol['stock'] <= 0:
+            break
+
+        deviation = params['direction_deviation']
+        blue_patrol['direction'] = (blue_patrol['direction'] + np.random.uniform(-deviation, deviation)) % 360
+        blue_patrol['direction_history'].append(blue_patrol['direction'])
+
+        v = np.random.uniform(0.5, 1.4)
+        move_distance = v * dt * 60
+        blue_patrol['x'] += move_distance * cos(radians(blue_patrol['direction']))
+        blue_patrol['y'] += move_distance * sin(radians(blue_patrol['direction']))
+        blue_patrol['x'] = np.clip(blue_patrol['x'], 0, 5000)
+        blue_patrol['y'] = np.clip(blue_patrol['y'], 0, 5000)
+        blue_patrol['positions'].append((blue_patrol['x'], blue_patrol['y']))
+
+        distance = np.sqrt((blue_patrol['x'] - hostile_patrol['x'])**2 + (blue_patrol['y'] - hostile_patrol['y'])**2)
+        if distance <= 1000:
+            blue_kills, hostile_kills = attack(
+                blue_patrol, hostile_patrol, params['environment'],
+                params['armor_type'], distance, config, fire_rates
+            )
+            blue_patrol['stock'] -= blue_kills
+            hostile_patrol['stock'] -= hostile_kills
+            total_blue_kills += blue_kills
+            total_hostile_kills += hostile_kills
+
+            if blue_patrol['stock'] <= 0:
+                blue_patrol['active'] = False
+                blue_patrol['removal_time'] = t
+
+        blue_patrol['stock_history'].append(blue_patrol['stock'])
+        hostile_patrol['stock_history'].append(hostile_patrol['stock'])
+        positions.append((blue_patrol['x'], blue_patrol['y']))
+        hostile_positions.append((hostile_patrol['x'], hostile_patrol['y']))
+
+    return {
+        'blue': blue_patrol,
+        'hostile': hostile_patrol,
+        'positions': positions,
+        'hostile_positions': hostile_positions,
+        'total_blue_kills': total_blue_kills,
+        'total_hostile_kills': total_hostile_kills,
+        'time_steps': time_steps[:len(positions)]
+    }
