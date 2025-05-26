@@ -1,2 +1,7 @@
 flask
 se-lib
+numpy
+matplotlib
+PyYAML
+pandas
+ipywidgets

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simulation Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #simulation-container {
+            margin: 20px auto;
+            position: relative;
+            width: 600px;
+            height: 600px;
+            border: 1px solid black;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simulation Control</h1>
+    <form id="simulation-form" onsubmit="event.preventDefault(); startSimulation();">
+        <input type="number" id="blue_stock" name="blue_stock" value="10">
+        <label for="hostile_stock">Hostile Stock:</label>
+        <input type="number" id="hostile_stock" name="hostile_stock" value="10" min="1" max="40">
+        <label for="direction_deviation">Direction Deviation:</label>
+        <input type="number" id="direction_deviation" name="direction_deviation" value="10" min="0" max="45" step="5">
+        <label for="armor_type">Armor Type:</label>
+        <select id="armor_type" name="armor_type">
+            <option value="Basilone Ballistic Insert">Basilone Ballistic Insert</option>
+            <option value="Chesty Ballistic Insert">Chesty Ballistic Insert</option>
+            <option value="Hathcock Ballistic Insert">Hathcock Ballistic Insert</option>
+        </select>
+        <label for="environment">Environment:</label>
+        <select id="environment" name="environment">
+            <option value="Krulak’s Three Block War">Krulak’s Three Block War</option>
+            <option value="Pershing’s Ghost">Pershing’s Ghost</option>
+            <option value="Nightmare from Mattis Street">Nightmare from Mattis Street</option>
+        </select>
+        <button type="submit">Run Simulation</button>
+    </form>
+    <div id="simulation-container">
+        <canvas id="simulation-canvas" width="600" height="600"></canvas>
+    </div>
+    <pre id="results"></pre>
+    <script>
+        const canvas = document.getElementById('simulation-canvas');
+        const ctx = canvas.getContext('2d');
+        const resultsElement = document.getElementById('results');
+        let path = [];
+        let combats = [];
+        let index = 0;
+        let animationFrameId = null;
+        let frameDelay = 5; // Number of frames to wait before moving to the next point
+        let frameCounter = 0;
+
+        function drawUnit(x, y) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+
+            // Draw combat locations that have already occurred
+            combats.slice(0, index).forEach(([cx, cy]) => {
+                ctx.fillStyle = 'red'; // Red for combat locations
+                ctx.beginPath();
+                ctx.arc(cx * canvas.width, cy * canvas.height, 5, 0, Math.PI * 2); // Small red circle
+                ctx.fill();
+            });
+
+            // Draw the good unit
+            ctx.fillStyle = 'blue'; // Blue for the good unit
+            ctx.beginPath();
+            ctx.arc(x * canvas.width, y * canvas.height, 10, 0, Math.PI * 2); // Larger blue circle
+            ctx.fill();
+        }
+
+        function moveUnit() {
+            if (index >= path.length) {
+                cancelAnimationFrame(animationFrameId); // Stop the animation
+                return;
+            }
+
+            // Increment the frame counter and only move the unit after the delay
+            if (frameCounter === 0) {
+                const [x, y] = path[index];
+                drawUnit(x, y);
+
+                // Check if a combat occurred at this location
+                if (combats[index]) {
+                    combats.push(combats[index]); // Add combat location dynamically
+                }
+
+                index++;
+            }
+
+            frameCounter = (frameCounter + 1) % frameDelay; // Reset the counter after the delay
+            animationFrameId = requestAnimationFrame(moveUnit); // Schedule the next frame
+        }
+
+        function startSimulation() {
+            const form = document.getElementById('simulation-form');
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData).toString();
+            fetch(`/run_simulation?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Display the results
+                    drawPaths(data.positions, data.hostile_positions);
+                    document.getElementById('results').textContent = formatResults(data);
+                });
+        }
+
+        function drawPaths(bluePath, hostilePath) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw blue path
+            ctx.strokeStyle = 'blue';
+            ctx.beginPath();
+            bluePath.forEach(([x, y], i) => {
+                if (i === 0) ctx.moveTo(x * canvas.width, y * canvas.height);
+                else ctx.lineTo(x * canvas.width, y * canvas.height);
+            });
+            ctx.stroke();
+            // Draw hostile path
+            ctx.strokeStyle = 'red';
+            ctx.beginPath();
+            hostilePath.forEach(([x, y], i) => {
+                if (i === 0) ctx.moveTo(x * canvas.width, y * canvas.height);
+                else ctx.lineTo(x * canvas.width, y * canvas.height);
+            });
+            ctx.stroke();
+            // Draw start/end points
+            if (bluePath.length) {
+                ctx.fillStyle = 'green';
+                ctx.beginPath();
+                ctx.arc(bluePath[0][0] * canvas.width, bluePath[0][1] * canvas.height, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'purple';
+                ctx.beginPath();
+                ctx.arc(bluePath[bluePath.length-1][0] * canvas.width, bluePath[bluePath.length-1][1] * canvas.height, 7, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function stopSimulation() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId); // Cancel the animation
+                animationFrameId = null;
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+        }
+
+        function formatResults(data) {
+            let output = `👥 Blue Remaining: ${data.blue.stock}\n`;
+            output += `🔴 Hostile Remaining: ${data.hostile.stock}\n`;
+            return output;
+        }
+    </script>
+</body>
+</html>
