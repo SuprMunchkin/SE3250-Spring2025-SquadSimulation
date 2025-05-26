@@ -12,6 +12,12 @@ threat_library:
   Topaz: [0.0015, -4.0872, 3160.6]
   Zircon: [0.0007, -2.4835, 2782.8]
 
+fire_rates:
+  blue_min: 1
+  blue_max: 15
+  hostile_min: 1
+  hostile_max: 10
+
 armor_profiles:
   Basilone Ballistic Insert:
     Garnet: [-15, 0.004]

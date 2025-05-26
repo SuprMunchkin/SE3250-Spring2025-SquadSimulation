@@ -13,6 +13,9 @@ with open(yaml_path, "r") as f:
 threat_library = config["threat_library"]
 armor_profiles = config["armor_profiles"]
 threat_probs = config["threat_probs"]
+fire_rates = config["fire_rates"]
+
+
 
 def get_velocity(threat, distance):
     c1, c2, c3 = threat_library[threat]
@@ -23,12 +26,18 @@ def get_defeat_probability(armor, threat, velocity):
     exponent = beta0 + velocity * beta1
     return np.exp(exponent) / (1 + np.exp(exponent))
 
-def attack(blue_patrol, hostile_patrol, env, armor, distance, blue_min_fire_rate, blue_max_fire_rate, hostile_min_fire_rate, hostile_max_fire_rate):
+def attack(blue_patrol, hostile_patrol, env, armor, distance):
     if distance > 1000:
         return 0, 0
     prob_attack = min(1, 100 / distance if distance > 0 else 1)
     if np.random.random() > prob_attack:
         return 0, 0
+
+    # Use fire_rates loaded from YAML
+    blue_min_fire_rate = fire_rates["blue_min"]
+    blue_max_fire_rate = fire_rates["blue_max"]
+    hostile_min_fire_rate = fire_rates["hostile_min"]
+    hostile_max_fire_rate = fire_rates["hostile_max"]
 
     # Blue shots
     blue_shots = np.random.randint(blue_min_fire_rate, blue_max_fire_rate + 1) * blue_patrol['stock']
@@ -88,6 +97,12 @@ def run_simulation(config, params, fire_rates, verbose=False):
     total_hostile_kills = 0
     positions = []
     hostile_positions = []
+    blue_min_fire_rate = fire_rates["blue_min"]
+    blue_max_fire_rate = fire_rates["blue_max"]
+    hostile_min_fire_rate = fire_rates["hostile_min"]
+    hostile_max_fire_rate = fire_rates["hostile_max"]
+
+    # Simulate patrol movement and combat
     for t in time_steps:
         if not blue_patrol['active'] or hostile_patrol['stock'] <= 0:
             break

@@ -24,21 +24,25 @@
 </head>
 <body>
     <h1>Simulation Control</h1>
-    <form id="simulation-form">
-        <label for="armor">Armor:</label>
-        <select id="armor" name="armor">
-            <option value="Light">Light</option>
-            <option value="Medium" selected>Medium</option>
-            <option value="Heavy">Heavy</option>
+    <form id="simulation-form" onsubmit="event.preventDefault(); startSimulation();">
+        <input type="number" id="blue_stock" name="blue_stock" value="10">
+        <label for="hostile_stock">Hostile Stock:</label>
+        <input type="number" id="hostile_stock" name="hostile_stock" value="10" min="1" max="40">
+        <label for="direction_deviation">Direction Deviation:</label>
+        <input type="number" id="direction_deviation" name="direction_deviation" value="10" min="0" max="45" step="5">
+        <label for="armor_type">Armor Type:</label>
+        <select id="armor_type" name="armor_type">
+            <option value="Basilone Ballistic Insert">Basilone Ballistic Insert</option>
+            <option value="Chesty Ballistic Insert">Chesty Ballistic Insert</option>
+            <option value="Hathcock Ballistic Insert">Hathcock Ballistic Insert</option>
         </select>
-        <br>
-        <label for="energy">Energy:</label>
-        <input type="number" id="energy" name="energy" value="100" min="10" max="100">
-        <br>
-        <label for="num_people">Number of People:</label>
-        <input type="number" id="num_people" name="num_people" value="40" min="30" max="50">
-        <br>
-        <button type="button" onclick="startSimulation()">Run Simulation</button>
+        <label for="environment">Environment:</label>
+        <select id="environment" name="environment">
+            <option value="Krulak’s Three Block War">Krulak’s Three Block War</option>
+            <option value="Pershing’s Ghost">Pershing’s Ghost</option>
+            <option value="Nightmare from Mattis Street">Nightmare from Mattis Street</option>
+        </select>
+        <button type="submit">Run Simulation</button>
     </form>
     <div id="simulation-container">
         <canvas id="simulation-canvas" width="600" height="600"></canvas>
@@ -97,19 +101,46 @@
         }
 
         function startSimulation() {
-            stopSimulation(); // Stop any ongoing simulation
             const form = document.getElementById('simulation-form');
             const formData = new FormData(form);
             const params = new URLSearchParams(formData).toString();
             fetch(`/run_simulation?${params}`)
                 .then(response => response.json())
                 .then(data => {
-                    path = data.path;
-                    combats = data.battle_results.map(battle => battle.location); // Extract combat locations
-                    index = 0;
-                    resultsElement.textContent = formatResults(data);
-                    animationFrameId = requestAnimationFrame(moveUnit); // Start the animation
+                    // Update your UI here
+                    document.getElementById('results').textContent = JSON.stringify(data, null, 2);
                 });
+        }
+
+        function drawPaths(bluePath, hostilePath) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw blue path
+            ctx.strokeStyle = 'blue';
+            ctx.beginPath();
+            bluePath.forEach(([x, y], i) => {
+                if (i === 0) ctx.moveTo(x * canvas.width, y * canvas.height);
+                else ctx.lineTo(x * canvas.width, y * canvas.height);
+            });
+            ctx.stroke();
+            // Draw hostile path
+            ctx.strokeStyle = 'red';
+            ctx.beginPath();
+            hostilePath.forEach(([x, y], i) => {
+                if (i === 0) ctx.moveTo(x * canvas.width, y * canvas.height);
+                else ctx.lineTo(x * canvas.width, y * canvas.height);
+            });
+            ctx.stroke();
+            // Draw start/end points
+            if (bluePath.length) {
+                ctx.fillStyle = 'green';
+                ctx.beginPath();
+                ctx.arc(bluePath[0][0] * canvas.width, bluePath[0][1] * canvas.height, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'purple';
+                ctx.beginPath();
+                ctx.arc(bluePath[bluePath.length-1][0] * canvas.width, bluePath[bluePath.length-1][1] * canvas.height, 7, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
 
         function stopSimulation() {
@@ -121,32 +152,8 @@
         }
 
         function formatResults(data) {
-            let output = `Simulation Results:\n`;
-            output += `Moves: ${data.move_counter}\n`;
-            output += `Remaining People: ${data.remaining_people}\n`;
-            output += `Final Energy: ${data.final_energy}\n`;
-            output += `Final Water: ${data.final_water}\n`;
-            output += `Lethality: ${data.lethality}\n`;
-            output += `Defense: ${data.defense}\n`;
-            output += `Bad Units Spawned: ${data.bad_units_spawned}\n\n`;
-
-            output += `Battle Results:\n`;
-            data.battle_results.forEach((battle, index) => {
-                output += `  Battle ${index + 1}:\n`;
-                output += `    Turns: ${battle.turns}\n`;
-                output += `    Good Unit Losses: ${battle.good_unit_losses}\n`;
-                output += `    Bad Unit Losses: ${battle.bad_unit_losses}\n`;
-                output += `    Good Unit Remaining: ${battle.good_unit_remaining}\n`;
-                output += `    Bad Unit Remaining: ${battle.bad_unit_remaining}\n`;
-                output += `    Location: (${battle.location[0].toFixed(2)}, ${battle.location[1].toFixed(2)})\n`;
-                if (battle.good_unit_eliminated) {
-                    output += `    ❌ The good unit has been eliminated!\n`;
-                } else if (battle.good_unit_exiting) {
-                    output += `    ⚠️ The good unit is exiting!\n`;
-                }
-                output += `\n`;
-            });
-
+            let output = `👥 Blue Remaining: ${data.blue.stock}\n`;
+            output += `🔴 Hostile Remaining: ${data.hostile.stock}\n`;
             return output;
         }
     </script>
