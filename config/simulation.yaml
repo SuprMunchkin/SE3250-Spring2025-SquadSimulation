@@ -1,0 +1,101 @@
+threat_library:
+  Garnet: [0.0011, -2.9354, 2844.8]
+  Amethyst: [0.0017, -4.2007, 3167.4]
+  Aquamarine: [0.001, -2.8943, 2836.6]
+  Diamond: [0.0007, -2.4645, 2777.8]
+  Emerald: [0.001, -2.8219, 2765.7]
+  Pearl: [0.0009, -2.524, 2746.6]
+  Ruby: [0.0009, -2.5037, 2745.5]
+  Peridot: [0.0026, -4.0108, 2356.4]
+  Sapphire: [0.0018, -3.6389, 2334.7]
+  Opal: [0.0016, -4.1357, 3163.8]
+  Topaz: [0.0015, -4.0872, 3160.6]
+  Zircon: [0.0007, -2.4835, 2782.8]
+
+fire_rates:
+  blue_min: 1
+  blue_max: 15
+  hostile_min: 1
+  hostile_max: 10
+
+armor_profiles:
+  Basilone Ballistic Insert:
+    Garnet: [-15, 0.004]
+    Amethyst: [-17, 0.004]
+    Aquamarine: [-14, 0.004]
+    Diamond: [-15, 0.004]
+    Emerald: [-12, 0.004]
+    Pearl: [-25, 0.004]
+    Ruby: [-25, 0.004]
+    Peridot: [-14, 0.004]
+    Sapphire: [-25, 0.004]
+    Opal: [-25, 0.004]
+    Topaz: [-20, 0.004]
+    Zircon: [-8, 0.004]
+  Chesty Ballistic Insert:
+    Garnet: [-14, 0.004]
+    Amethyst: [-10, 0.004]
+    Aquamarine: [-8, 0.004]
+    Diamond: [-13, 0.004]
+    Emerald: [-4, 0.004]
+    Pearl: [-25, 0.004]
+    Ruby: [-25, 0.004]
+    Peridot: [-13, 0.004]
+    Sapphire: [-25, 0.004]
+    Opal: [-25, 0.004]
+    Topaz: [-16, 0.004]
+    Zircon: [-2, 0.004]
+  Hathcock Ballistic Insert:
+    Garnet: [-8, 0.004]
+    Amethyst: [-6, 0.004]
+    Aquamarine: [-4, 0.004]
+    Diamond: [-9, 0.004]
+    Emerald: [-2, 0.004]
+    Pearl: [-20, 0.004]
+    Ruby: [-25, 0.004]
+    Peridot: [-10, 0.004]
+    Sapphire: [-12, 0.004]
+    Opal: [-22, 0.004]
+    Topaz: [-11, 0.004]
+    Zircon: [-1, 0.004]
+
+threat_probs:
+  Krulak’s Three Block War:
+    Garnet: 0.01
+    Amethyst: 0
+    Aquamarine: 0
+    Diamond: 0.04
+    Emerald: 0
+    Pearl: 0.45
+    Ruby: 0.15
+    Peridot: 0.15
+    Sapphire: 0.15
+    Opal: 0.05
+    Topaz: 0
+    Zircon: 0
+  Pershing’s Ghost:
+    Garnet: 0.10
+    Amethyst: 0.02
+    Aquamarine: 0.01
+    Diamond: 0.10
+    Emerald: 0
+    Pearl: 0.20
+    Ruby: 0.05
+    Peridot: 0.25
+    Sapphire: 0.15
+    Opal: 0.08
+    Topaz: 0.04
+    Zircon: 0
+  Nightmare from Mattis Street:
+    Garnet: 0.34
+    Amethyst: 0.11
+    Aquamarine: 0.09
+    Diamond: 0.10
+    Emerald: 0.04
+    Pearl: 0.05
+    Ruby: 0.05
+    Peridot: 0.05
+    Sapphire: 0.01
+    Opal: 0.05
+    Topaz: 0.10
+    Zircon: 0.01
