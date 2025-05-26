@@ -1,6 +1,6 @@
 from flask import Flask, render_template_string, jsonify, request
 from simulation import run_simulation
-from app.model.agent import GoodUnit, BadUnit, battle
+from app.models.agent import GoodUnit, BadUnit, battle
 from random import random
 import os
 

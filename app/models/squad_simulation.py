@@ -5,7 +5,7 @@ import yaml
 import os
 
 # Load static variables from YAML in the config directory
-yaml_path = os.path.join(os.path.dirname(__file__), "../../config/simulation.yaml")
+yaml_path = os.path.join(os.path.dirname(__file__), "../config/simulation.yaml")
 with open(yaml_path, "r") as f:
     config = yaml.safe_load(f)
 
