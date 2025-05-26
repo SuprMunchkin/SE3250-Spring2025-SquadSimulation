@@ -107,8 +107,9 @@
             fetch(`/run_simulation?${params}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Update your UI here
-                    document.getElementById('results').textContent = JSON.stringify(data, null, 2);
+                    // Display the results
+                    drawPaths(data.positions, data.hostile_positions);
+                    document.getElementById('results').textContent = formatResults(data);
                 });
         }
 

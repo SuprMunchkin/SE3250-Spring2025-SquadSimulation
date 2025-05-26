@@ -3,18 +3,16 @@ import pandas as pd
 from math import cos, sin, radians, exp
 import yaml
 import os
+import sys
 
-# Load static variables from YAML in the config directory
 yaml_path = os.path.join(os.path.dirname(__file__), "../config/simulation.yaml")
 with open(yaml_path, "r") as f:
     config = yaml.safe_load(f)
 
-# Threat library and profiles
 threat_library = config["threat_library"]
 armor_profiles = config["armor_profiles"]
 threat_probs = config["threat_probs"]
 fire_rates = config["fire_rates"]
-
 
 
 def get_velocity(threat, distance):
@@ -26,14 +24,13 @@ def get_defeat_probability(armor, threat, velocity):
     exponent = beta0 + velocity * beta1
     return np.exp(exponent) / (1 + np.exp(exponent))
 
-def attack(blue_patrol, hostile_patrol, env, armor, distance):
+def attack(blue_patrol, hostile_patrol, env, armor, fire_rates ,distance):
     if distance > 1000:
         return 0, 0
     prob_attack = min(1, 100 / distance if distance > 0 else 1)
     if np.random.random() > prob_attack:
         return 0, 0
 
-    # Use fire_rates loaded from YAML
     blue_min_fire_rate = fire_rates["blue_min"]
     blue_max_fire_rate = fire_rates["blue_max"]
     hostile_min_fire_rate = fire_rates["hostile_min"]
@@ -56,7 +53,55 @@ def attack(blue_patrol, hostile_patrol, env, armor, distance):
 
     return blue_kills, hostile_kills
 
-def run_simulation(config, params, fire_rates, verbose=False):
+def to_python_type(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: to_python_type(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [to_python_type(i) for i in obj]
+    return obj
+
+def clean_inf_nan(obj):
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: clean_inf_nan(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [clean_inf_nan(i) for i in obj]
+    return obj
+
+def make_json_safe(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        val = float(obj)
+        if np.isnan(val) or np.isinf(val):
+            return None
+        return val
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return [make_json_safe(i) for i in obj]
+    if isinstance(obj, dict):
+        return {k: make_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, np.ndarray):
+        return make_json_safe(obj.tolist())
+    return obj
+
+def run_simulation(params):
     start_time = 0
     stop_time = 4320
     dt = 1
@@ -97,10 +142,7 @@ def run_simulation(config, params, fire_rates, verbose=False):
     total_hostile_kills = 0
     positions = []
     hostile_positions = []
-    blue_min_fire_rate = fire_rates["blue_min"]
-    blue_max_fire_rate = fire_rates["blue_max"]
-    hostile_min_fire_rate = fire_rates["hostile_min"]
-    hostile_max_fire_rate = fire_rates["hostile_max"]
+
 
     # Simulate patrol movement and combat
     for t in time_steps:
@@ -123,7 +165,7 @@ def run_simulation(config, params, fire_rates, verbose=False):
         if distance <= 1000:
             blue_kills, hostile_kills = attack(
                 blue_patrol, hostile_patrol, params['environment'],
-                params['armor_type'], distance, config, fire_rates
+                params['armor_type'], fire_rates, distance
             )
             blue_patrol['stock'] -= blue_kills
             hostile_patrol['stock'] -= hostile_kills
@@ -139,12 +181,38 @@ def run_simulation(config, params, fire_rates, verbose=False):
         positions.append((blue_patrol['x'], blue_patrol['y']))
         hostile_positions.append((hostile_patrol['x'], hostile_patrol['y']))
 
-    return {
-        'blue': blue_patrol,
-        'hostile': hostile_patrol,
-        'positions': positions,
-        'hostile_positions': hostile_positions,
-        'total_blue_kills': total_blue_kills,
-        'total_hostile_kills': total_hostile_kills,
-        'time_steps': time_steps[:len(positions)]
+    # Convert all positions to lists for JSON serialization
+    blue_positions = [list(pos) for pos in blue_patrol['positions']]
+    hostile_positions_list = [list(pos) for pos in hostile_patrol['positions']]
+    positions_list = [list(pos) for pos in positions]
+    hostile_positions_serializable = [list(pos) for pos in hostile_positions]
+    time_steps_list = list(time_steps[:len(positions)])
+
+    # Optionally, convert stock_history and direction_history if needed
+    blue_stock_history = list(blue_patrol['stock_history'])
+    blue_direction_history = list(blue_patrol['direction_history'])
+    hostile_stock_history = list(hostile_patrol['stock_history'])
+
+    # Prepare patrols for serialization
+    blue_patrol_serializable = {
+        **blue_patrol,
+        'positions': blue_positions,
+        'stock_history': blue_stock_history,
+        'direction_history': blue_direction_history
     }
+    hostile_patrol_serializable = {
+        **hostile_patrol,
+        'positions': hostile_positions_list,
+        'stock_history': hostile_stock_history
+    }
+
+    result = {
+        'blue': blue_patrol_serializable,
+        'hostile': hostile_patrol_serializable,
+        'positions': positions_list,
+        'hostile_positions': hostile_positions_serializable,
+        'total_blue_kills': int(total_blue_kills),
+        'total_hostile_kills': int(total_hostile_kills),
+        'time_steps': time_steps_list
+    }
+    return make_json_safe(result)

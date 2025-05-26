@@ -29,7 +29,7 @@ def run_simulation_endpoint():
         "armor_type": armor_type,
         "environment": environment
     }
-    results = run_simulation(config, params, fire_rates)
+    results = run_simulation(params)
     return jsonify(results)
 
 if __name__ == "__main__":
