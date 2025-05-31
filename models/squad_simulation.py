@@ -74,8 +74,7 @@ def run_simulation(params):
     time_steps = np.arange(start_time, stop_time + dt, dt)
 
     # Initialize blue and hostile patrols
-    # In the flask app, the origin is in the top left corner, direction 0 is to the right and rotates clockwise.
-    # Todo: verify positions and directions in the ipython notebook
+    # The origin is in the bottom left corner, direction 0 is to the right and rotates counter-clockwise.
     blue_patrol = {
         'stock': params['blue_stock'],
         'x': 0, #np.random.uniform(0, 5000),
@@ -160,10 +159,8 @@ def run_simulation(params):
         hostile_positions.append((hostile_patrol['x'], hostile_patrol['y']))
 
     # Convert all positions to lists for JSON serialization
-    blue_positions = [list(pos) for pos in blue_patrol['positions']]
+    blue_positions_list = [list(pos) for pos in blue_patrol['positions']]
     hostile_positions_list = [list(pos) for pos in hostile_patrol['positions']]
-    positions_list = [list(pos) for pos in positions]
-    hostile_positions_serializable = [list(pos) for pos in hostile_positions]
     time_steps_list = list(time_steps[:len(positions)])
 
     # Optionally, convert stock_history and direction_history if needed
@@ -174,7 +171,7 @@ def run_simulation(params):
     # Prepare patrols for serialization
     blue_patrol_serializable = {
         **blue_patrol,
-        'positions': blue_positions,
+        'positions': blue_positions_list,
         'stock_history': blue_stock_history,
         'direction_history': blue_direction_history
     }
@@ -187,8 +184,8 @@ def run_simulation(params):
     result = {
         'blue': blue_patrol_serializable,
         'hostile': hostile_patrol_serializable,
-        'positions': positions_list,
-        'hostile_positions': hostile_positions_serializable,
+        'positions': blue_positions_list,  # Use blue_patrol['positions']
+        'hostile_positions': hostile_positions_list,  # Use hostile_patrol['positions']
         'total_blue_kills': int(total_blue_kills),
         'total_hostile_kills': int(total_hostile_kills),
         'time_steps': time_steps_list

@@ -147,7 +147,7 @@
                 ctx.beginPath();
                 bluePath.forEach(([x, y], i) => {
                     let sx = x / 5000 * canvas.width;
-                    let sy = y / 5000 * canvas.height;
+                    let sy = (5000-y) / 5000 * canvas.height;
                     if (i === 0) ctx.moveTo(sx, sy);
                     else ctx.lineTo(sx, sy);
                 });
@@ -160,7 +160,7 @@
                 ctx.beginPath();
                 hostilePath.forEach(([x, y], i) => {
                     let sx = x / 5000 * canvas.width;
-                    let sy = y / 5000 * canvas.height;
+                    let sy = (5000-y) / 5000 * canvas.height;
                     if (i === 0) ctx.moveTo(sx, sy);
                     else ctx.lineTo(sx, sy);
                 });
