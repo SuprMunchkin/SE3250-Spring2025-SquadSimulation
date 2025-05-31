@@ -77,9 +77,9 @@ def run_simulation(params):
     # The origin is in the bottom left corner, direction 0 is to the right and rotates counter-clockwise.
     blue_patrol = {
         'stock': params['blue_stock'],
-        'x': 0, #np.random.uniform(0, 5000),
-        'y': 0, #np.random.uniform(0, 5000),
-        'direction': 45, #np.random.uniform(0, 360),
+        'x': np.random.uniform(0, 5000),
+        'y': np.random.uniform(0, 5000),
+        'direction': np.random.uniform(0, 360),
         'm': np.random.normal(76.6571, 11.06765),
         'spawn_time': 0,
         'removal_time': float('inf'),
@@ -96,8 +96,8 @@ def run_simulation(params):
 
     hostile_patrol = {
         'stock': params['hostile_stock'],
-        'x': 100, #np.random.uniform(0, 5000),
-        'y': 100, #np.random.uniform(0, 5000),
+        'x': np.random.uniform(0, 5000),
+        'y': np.random.uniform(0, 5000),
         'positions': [],
         'stock_history': [params['hostile_stock']],
         'spawn_time': 0,
