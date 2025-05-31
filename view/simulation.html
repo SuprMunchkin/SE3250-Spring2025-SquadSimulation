@@ -7,11 +7,26 @@
             font-family: Arial, sans-serif;
             text-align: center;
         }
+        #simulation-form {
+            display: inline-block;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .form-group {
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        .form-group label,
+        .form-group input,
+        .form-group select {
+            display: block;
+            margin: 0 auto;
+        }
         #simulation-container {
             margin: 20px auto;
             position: relative;
-            width: 600px;
-            height: 600px;
+            width: 1000px;
+            height: 1000px;
             border: 1px solid black;
             background-color: #f0f0f0;
         }
@@ -25,27 +40,37 @@
 <body>
     <h1>Simulation Control</h1>
     <form id="simulation-form" onsubmit="event.preventDefault(); startSimulation();">
-        <input type="number" id="blue_stock" name="blue_stock" value="10">
-        <label for="hostile_stock">Hostile Stock:</label>
-        <input type="number" id="hostile_stock" name="hostile_stock" value="10" min="1" max="40">
-        <label for="direction_deviation">Direction Deviation:</label>
-        <input type="number" id="direction_deviation" name="direction_deviation" value="10" min="0" max="45" step="5">
-        <label for="armor_type">Armor Type:</label>
-        <select id="armor_type" name="armor_type">
-            <option value="Basilone Ballistic Insert">Basilone Ballistic Insert</option>
-            <option value="Chesty Ballistic Insert">Chesty Ballistic Insert</option>
-            <option value="Hathcock Ballistic Insert">Hathcock Ballistic Insert</option>
-        </select>
-        <label for="environment">Environment:</label>
-        <select id="environment" name="environment">
-            <option value="Krulak’s Three Block War">Krulak’s Three Block War</option>
-            <option value="Pershing’s Ghost">Pershing’s Ghost</option>
-            <option value="Nightmare from Mattis Street">Nightmare from Mattis Street</option>
-        </select>
-        <button type="submit">Run Simulation</button>
+        <div class="form-group">
+            <label for="blue_stock">Blue Stock:</label>
+            <input type="number" id="blue_stock" name="blue_stock" value="10" min="1" max="40">
+            <br>
+            <label for="hostile_stock">Hostile Stock:</label>
+            <input type="number" id="hostile_stock" name="hostile_stock" value="10" min="1" max="40">
+            <br>
+            <label for="direction_deviation">Direction Deviation:</label>
+            <input type="number" id="direction_deviation" name="direction_deviation" value="10" min="0" max="45" step="5">
+        </div>
+        <div class="form-group">
+            <label for="armor_type">Armor Type:</label>
+            <select id="armor_type" name="armor_type">
+                <option value="Basilone Ballistic Insert">Basilone Ballistic Insert</option>
+                <option value="Chesty Ballistic Insert">Chesty Ballistic Insert</option>
+                <option value="Hathcock Ballistic Insert">Hathcock Ballistic Insert</option>
+            </select>
+            <br>
+            <label for="environment">Environment:</label>
+            <select id="environment" name="environment">
+                <option value="Krulak’s Three Block War">Krulak’s Three Block War</option>
+                <option value="Pershing’s Ghost">Pershing’s Ghost</option>
+                <option value="Nightmare from Mattis Street">Nightmare from Mattis Street</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <button type="submit">Run Simulation</button>
+        </div>
     </form>
     <div id="simulation-container">
-        <canvas id="simulation-canvas" width="600" height="600"></canvas>
+        <canvas id="simulation-canvas" width="1000" height="1000"></canvas>
     </div>
     <pre id="results"></pre>
     <script>
@@ -115,32 +140,31 @@
 
         function drawPaths(bluePath, hostilePath) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             // Draw blue path
-            ctx.strokeStyle = 'blue';
-            ctx.beginPath();
-            bluePath.forEach(([x, y], i) => {
-                if (i === 0) ctx.moveTo(x * canvas.width, y * canvas.height);
-                else ctx.lineTo(x * canvas.width, y * canvas.height);
-            });
-            ctx.stroke();
+            if (bluePath && bluePath.length > 0) {
+                ctx.strokeStyle = 'blue';
+                ctx.beginPath();
+                bluePath.forEach(([x, y], i) => {
+                    let sx = x / 5000 * canvas.width;
+                    let sy = (5000-y) / 5000 * canvas.height;
+                    if (i === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                });
+                ctx.stroke();
+            }
+
             // Draw hostile path
-            ctx.strokeStyle = 'red';
-            ctx.beginPath();
-            hostilePath.forEach(([x, y], i) => {
-                if (i === 0) ctx.moveTo(x * canvas.width, y * canvas.height);
-                else ctx.lineTo(x * canvas.width, y * canvas.height);
-            });
-            ctx.stroke();
-            // Draw start/end points
-            if (bluePath.length) {
-                ctx.fillStyle = 'green';
+            if (hostilePath && hostilePath.length > 0) {
+                ctx.strokeStyle = 'red';
                 ctx.beginPath();
-                ctx.arc(bluePath[0][0] * canvas.width, bluePath[0][1] * canvas.height, 7, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = 'purple';
-                ctx.beginPath();
-                ctx.arc(bluePath[bluePath.length-1][0] * canvas.width, bluePath[bluePath.length-1][1] * canvas.height, 7, 0, Math.PI * 2);
-                ctx.fill();
+                hostilePath.forEach(([x, y], i) => {
+                    let sx = x / 5000 * canvas.width;
+                    let sy = (5000-y) / 5000 * canvas.height;
+                    if (i === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                });
+                ctx.stroke();
             }
         }
 
