@@ -14,7 +14,6 @@ armor_profiles = config["armor_profiles"]
 threat_probs = config["threat_probs"]
 fire_rates = config["fire_rates"]
 
-
 def get_velocity(threat, distance):
     c1, c2, c3 = threat_library[threat]
     return c1 * distance**2 + c2 * distance + c3
@@ -31,19 +30,14 @@ def attack(blue_patrol, hostile_patrol, env, armor, fire_rates ,distance):
     if np.random.random() > prob_attack:
         return 0, 0
 
-    blue_min_fire_rate = fire_rates["blue_min"]
-    blue_max_fire_rate = fire_rates["blue_max"]
-    hostile_min_fire_rate = fire_rates["hostile_min"]
-    hostile_max_fire_rate = fire_rates["hostile_max"]
-
     # Blue shots
-    blue_shots = np.random.randint(blue_min_fire_rate, blue_max_fire_rate + 1) * blue_patrol['stock']
+    blue_shots = np.random.randint(fire_rates["blue_min"], fire_rates["blue_max"] + 1) * blue_patrol['stock']
     prob_blue_hit = exp(-0.002 * distance)
     blue_hits = sum(np.random.random() < prob_blue_hit for _ in range(blue_shots))
     hostile_kills = min(hostile_patrol['stock'], sum(np.random.normal(0.75, 0.05) > np.random.random() for _ in range(blue_hits)))
 
     # Hostile shots
-    hostile_shots = np.random.randint(hostile_min_fire_rate, hostile_max_fire_rate + 1) * hostile_patrol['stock']
+    hostile_shots = np.random.randint(fire_rates["hostile_min"], fire_rates["hostile_max"] + 1) * hostile_patrol['stock']
     hostile_threat = np.random.choice(list(threat_probs[env].keys()), p=list(threat_probs[env].values()))
     hostile_velocity = get_velocity(hostile_threat, distance)
     prob_hostile_hit = exp(-0.002 * distance)
@@ -52,34 +46,6 @@ def attack(blue_patrol, hostile_patrol, env, armor, fire_rates ,distance):
     blue_kills = min(blue_patrol['stock'], hostile_defeats)
 
     return blue_kills, hostile_kills
-
-def to_python_type(obj):
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, float):
-        if np.isnan(obj) or np.isinf(obj):
-            return None
-        return obj
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, dict):
-        return {k: to_python_type(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [to_python_type(i) for i in obj]
-    return obj
-
-def clean_inf_nan(obj):
-    if isinstance(obj, float):
-        if np.isnan(obj) or np.isinf(obj):
-            return None
-        return obj
-    if isinstance(obj, dict):
-        return {k: clean_inf_nan(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [clean_inf_nan(i) for i in obj]
-    return obj
 
 def make_json_safe(obj):
     if isinstance(obj, np.integer):
@@ -108,11 +74,13 @@ def run_simulation(params):
     time_steps = np.arange(start_time, stop_time + dt, dt)
 
     # Initialize blue and hostile patrols
+    # In the flask app, the origin is in the top left corner, direction 0 is to the right and rotates clockwise.
+    # Todo: verify positions and directions in the ipython notebook
     blue_patrol = {
         'stock': params['blue_stock'],
-        'x': np.random.uniform(0, 5000),
-        'y': np.random.uniform(0, 5000),
-        'direction': np.random.uniform(0, 360),
+        'x': 0, #np.random.uniform(0, 5000),
+        'y': 0, #np.random.uniform(0, 5000),
+        'direction': 45, #np.random.uniform(0, 360),
         'm': np.random.normal(76.6571, 11.06765),
         'spawn_time': 0,
         'removal_time': float('inf'),
@@ -129,8 +97,8 @@ def run_simulation(params):
 
     hostile_patrol = {
         'stock': params['hostile_stock'],
-        'x': np.random.uniform(0, 5000),
-        'y': np.random.uniform(0, 5000),
+        'x': 100, #np.random.uniform(0, 5000),
+        'y': 100, #np.random.uniform(0, 5000),
         'positions': [],
         'stock_history': [params['hostile_stock']],
         'spawn_time': 0,
@@ -143,13 +111,13 @@ def run_simulation(params):
     positions = []
     hostile_positions = []
 
-
     # Simulate patrol movement and combat
     for t in time_steps:
         if not blue_patrol['active'] or hostile_patrol['stock'] <= 0:
             break
 
         deviation = params['direction_deviation']
+        
         blue_patrol['direction'] = (blue_patrol['direction'] + np.random.uniform(-deviation, deviation)) % 360
         blue_patrol['direction_history'].append(blue_patrol['direction'])
 
@@ -160,6 +128,16 @@ def run_simulation(params):
         blue_patrol['x'] = np.clip(blue_patrol['x'], 0, 5000)
         blue_patrol['y'] = np.clip(blue_patrol['y'], 0, 5000)
         blue_patrol['positions'].append((blue_patrol['x'], blue_patrol['y']))
+
+        # This section "bounces" the patrols off the bounds of the area, to keep them from "sticking" to the edges.
+        if blue_patrol['x'] == 0:
+            blue_patrol['direction'] = 0
+        elif blue_patrol['x'] == 5000:
+            blue_patrol['direction'] = 180
+        if blue_patrol['y'] == 0:    
+            blue_patrol['direction'] = 90
+        elif blue_patrol['y'] == 5000:
+            blue_patrol['direction'] = 270
 
         distance = np.sqrt((blue_patrol['x'] - hostile_patrol['x'])**2 + (blue_patrol['y'] - hostile_patrol['y'])**2)
         if distance <= 1000:
