@@ -42,7 +42,7 @@
     <form id="simulation-form" onsubmit="event.preventDefault(); startSimulation();">
         <div class="form-group">
             <label for="blue_stock">Blue Stock:</label>
-            <input type="number" id="blue_stock" name="blue_stock" value="10" min="1" max="40">
+            <input type="number" id="blue_stock" name="blue_stock" value="10" min="1" max="20">
             <br>
             <label for="hostile_stock">Hostile Stock:</label>
             <input type="number" id="hostile_stock" name="hostile_stock" value="10" min="1" max="40">
@@ -152,6 +152,15 @@
                     else ctx.lineTo(sx, sy);
                 });
                 ctx.stroke();
+
+                // Draw blue unit as a blue circle at its last position
+                let [bx, by] = bluePath[bluePath.length - 1];
+                let bsx = bx / 5000 * canvas.width;
+                let bsy = (5000-by) / 5000 * canvas.height;
+                ctx.fillStyle = 'blue';
+                ctx.beginPath();
+                ctx.arc(bsx, bsy, 5, 0, Math.PI * 2);
+                ctx.fill();
             }
 
             // Draw hostile path
@@ -165,6 +174,15 @@
                     else ctx.lineTo(sx, sy);
                 });
                 ctx.stroke();
+
+                // Draw hostile unit as a red circle at its last position
+                let [hx, hy] = hostilePath[hostilePath.length - 1];
+                let hsx = hx / 5000 * canvas.width;
+                let hsy = (5000-hy) / 5000 * canvas.height;
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(hsx, hsy, 5, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
