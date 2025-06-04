@@ -14,11 +14,11 @@ armor_profiles = config["armor_profiles"]
 threat_probs = config["threat_probs"]
 fire_rates = config["fire_rates"]
 
-def get_velocity(threat, distance):
+def _get_velocity(threat, distance):
     c1, c2, c3 = threat_library[threat]
     return c1 * distance**2 + c2 * distance + c3
 
-def get_defeat_probability(armor, threat, velocity):
+def _get_defeat_probability(armor, threat, velocity):
     beta0, beta1 = armor_profiles[armor][threat]
     exponent = beta0 + velocity * beta1
     return np.exp(exponent) / (1 + np.exp(exponent))
@@ -33,10 +33,10 @@ def _attack(blue_patrol, hostile_patrol, env, armor, distance):
     # Hostile shots
     hostile_shots = np.random.randint(fire_rates["hostile_min"], fire_rates["hostile_max"] + 1) * hostile_patrol['stock']
     hostile_threat = np.random.choice(list(threat_probs[env].keys()), p=list(threat_probs[env].values()))
-    hostile_velocity = get_velocity(hostile_threat, distance)
+    hostile_velocity = _get_velocity(hostile_threat, distance)
     prob_hostile_hit = exp(-0.002 * distance)
     hostile_hits = sum(np.random.random() < prob_hostile_hit for _ in range(hostile_shots))
-    hostile_defeats = sum(np.random.random() < get_defeat_probability(armor, hostile_threat, hostile_velocity) for _ in range(hostile_hits))
+    hostile_defeats = sum(np.random.random() < _get_defeat_probability(armor, hostile_threat, hostile_velocity) for _ in range(hostile_hits))
     blue_kills = min(blue_patrol['stock'], hostile_defeats)
 
     return blue_kills, hostile_kills
