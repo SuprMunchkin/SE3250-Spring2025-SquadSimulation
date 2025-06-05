@@ -1,7 +1,5 @@
 from flask import Flask, jsonify, request
 import os
-
-# Import the simulation logic from your model
 from models.squad_simulation import run_simulation
 
 app = Flask(__name__)
@@ -29,7 +27,7 @@ def run_simulation_endpoint():
         "armor_type": armor_type,
         "environment": environment
     }
-    results = run_simulation(params)
+    results = run_simulation(params, plot=True)
     return jsonify(results)
 
 if __name__ == "__main__":
