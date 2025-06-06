@@ -42,7 +42,7 @@ def _move(start, distance, direction, bound=map_size):
     y = start[1]
     
     x += distance * cos(radians(direction))
-    y += distance * cos(radians(direction))
+    y += distance * sin(radians(direction))
     x = np.clip(x, 0, map_size)
     y = np.clip(y, 0, map_size)
 
@@ -105,7 +105,6 @@ def run_simulation(params, plot=True):
 
     sim_time = 0
     dt = 1
-    time_steps = np.arange(sim_time, stop_time + dt, dt)
 
     blue_patrol = {
         'stock': params['blue_stock'],
@@ -121,7 +120,7 @@ def run_simulation(params, plot=True):
         'patrol_time': 0,
         'patrol_distance': 0
     }
-    blue_patrol['positions'].append((blue_patrol['current position']))
+    blue_patrol['positions'].append((blue_patrol['current_position']))
     blue_patrol['stock_history'].append(blue_patrol['stock'])
     #blue_patrol['direction_history'].append(blue_patrol['direction'])
 
@@ -137,7 +136,7 @@ def run_simulation(params, plot=True):
     total_hostile_kills = 0
  
     # Simulate patrol movement and combat
-    while sim_time < time_steps and blue_patrol['stock'] > 0 and hostile_patrol['stock'] > 0:
+    while sim_time < stop_time and blue_patrol['stock'] > 0 and hostile_patrol['stock'] > 0:
         sim_time += dt
         blue_position = (blue_patrol['current_position'])
 
@@ -168,7 +167,7 @@ def run_simulation(params, plot=True):
 
         
         #Combat section
-        distance_to_enemy = np.sqrt((blue_patrol['x'] - hostile_patrol['x'])**2 + (blue_patrol['y'] - hostile_patrol['y'])**2)
+        distance_to_enemy = dist(blue_patrol['current_position'], hostile_patrol['current_position'])
         if distance_to_enemy != 0:
             prob_attack = 1 / np.sqrt(distance_to_enemy)
         else:
@@ -217,7 +216,8 @@ def run_simulation(params, plot=True):
     result = {
         'blue': blue_patrol_serializable,
         'hostile': hostile_patrol_serializable,
-        'positions': blue_positions_list,   # Will only contain blue spawn position if plot=False.
+        'blue_positions': blue_positions_list,   # Will only contain blue spawn position if plot=False.
+        'hostile_position': hostile_patrol['current_position'],
         'total_blue_kills': int(total_blue_kills),
         'total_hostile_kills': int(total_hostile_kills),
     }
