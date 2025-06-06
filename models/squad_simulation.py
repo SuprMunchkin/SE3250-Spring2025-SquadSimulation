@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from math import cos, sin, radians, exp
+from math import cos, sin, radians, exp, dist
 import yaml
 import os
 import sys
@@ -8,59 +8,52 @@ import sys
 yaml_path = os.path.join(os.path.dirname(__file__), "../config/simulation.yaml")
 with open(yaml_path, "r") as f:
     config = yaml.safe_load(f)
-
+ 
 threat_library = config["threat_library"]
 armor_profiles = config["armor_profiles"]
 threat_probs = config["threat_probs"]
 fire_rates = config["fire_rates"]
-
+map_size = config["map_size"]
+stop_time = config["stop_time"] 
+ 
+# This is for projectile velocity calculation, not the patrol velocity.
 def _get_velocity(threat, distance):
     c1, c2, c3 = threat_library[threat]
     return c1 * distance**2 + c2 * distance + c3
-
+ 
 def _get_defeat_probability(armor, threat, velocity):
     beta0, beta1 = armor_profiles[armor][threat]
     exponent = beta0 + velocity * beta1
     return np.exp(exponent) / (1 + np.exp(exponent))
-
-def _move_patrol(patrol, distance, direction, plot):
-    """Moves the patrol a certain distance in a given direction and records the position and distance traveled.
+ 
+def _move(start, distance, direction, bound=map_size):
+    """Moves a point a certain distance in a given direction and records the position and distance traveled.
+    Does not allow the point to leave an area defined by the bound parameter, which defaults to the global variable: map_size.
     Args:
-        patrol (dict): The patrol to move, containing 'x', 'y', and 'positions'.
+        location (float, float): starting location, coordinates should be in (x,y) format.
         distance (float): The distance to move the patrol.
-        direction (float): The direction to move the patrol in degrees.
-        plot (bool): Whether to record the distance traveled or the position history.
+        direction (float): The direction to move the patrol in degrees. 0 degrees is to the right and the degrees rotate counter-clockwise.
+        bound (int): Maximum value each coordinate can take. Defaults to a global variable.
+    Retruns
+        end (float, float): The end position of the point.
+        travel (float): The distance the point traveled.
     """
+    x = start[0]
+    y = start[1]
     
-    #Todo: Fix this method to use a position (passed in) instead of pulling in the Patrol.
-    patrol['x'] += distance * cos(radians(direction))
-    if patrol['x'] < 0:
-        distance -= 0 - patrol['x']   
-        patrol['x'] = 0
-    elif patrol['x'] > 5000:
-        distance -= patrol['x'] - 5000
-        patrol['x'] = 5000
-    
-    patrol['y'] += distance * sin(radians(direction))
-    if patrol['y'] < 0:
-        distance -= 0 - patrol['y']
-        patrol['y'] = 0
-    elif patrol['y'] > 5000:
-        distance -= patrol['y'] - 5000
-        patrol['y'] = 5000
-    
+    x += distance * cos(radians(direction))
+    y += distance * cos(radians(direction))
+    x = np.clip(x, 0, map_size)
+    y = np.clip(y, 0, map_size)
 
-    # Fix this to not reference the patrol.
-    if plot:
-        patrol['patrol_distance'] += distance
-    else:
-        patrol['positions'].append((patrol['x'], patrol['y']))
+    end = (x,y)
+    travel = dist(start, end) 
 
-    # Should return the distance moved and the new position.
-    return
-
-
+    return end, travel
+ 
+ 
 def _attack(blue_patrol, hostile_patrol, env, armor, distance):
+
     # Blue shots
     blue_shots = np.random.randint(fire_rates["blue_min"], fire_rates["blue_max"] + 1) * blue_patrol['stock']
     prob_blue_hit = exp(-0.002 * distance)
@@ -77,7 +70,7 @@ def _attack(blue_patrol, hostile_patrol, env, armor, distance):
     blue_kills = min(blue_patrol['stock'], hostile_defeats)
 
     return blue_kills, hostile_kills
-
+ 
 def make_json_safe(obj):
     if isinstance(obj, np.integer):
         return int(obj)
@@ -97,9 +90,9 @@ def make_json_safe(obj):
     if isinstance(obj, np.ndarray):
         return make_json_safe(obj.tolist())
     return obj
-
+ 
 def run_simulation(params, plot=True):
-    """ Simulates a patrol operation between blue and hostile forces on a 5000x5000 unit terrain. 
+    """ Simulates a patrol operation between blue and hostile forces on a terrain defined by the map_size parmeter. 
     Origin is at the bottom left corner, direction 0 is to the right and rotates counter-clockwise.
     Args:
         params (dict): Simulation parameters including blue and hostile stock, environment, armor type, and direction deviation.
@@ -109,80 +102,77 @@ def run_simulation(params, plot=True):
             Defaults to True. 
     Returns:
         dict: A dictionary containing the simulation results including patrol positions, stock history, and total kills."""
-    start_time = 0
-    stop_time = 4320
-    sim_time = start_time
-    dt = 1
-    time_steps = np.arange(start_time, stop_time + dt, dt)
 
-    # Initialize blue and hostile patrols
-    # The origin is in the bottom left corner, direction 0 is to the right and rotates counter-clockwise.
+    sim_time = 0
+    dt = 1
+    time_steps = np.arange(sim_time, stop_time + dt, dt)
+
     blue_patrol = {
         'stock': params['blue_stock'],
-        'x': np.random.uniform(0, 5000),
-        'y': np.random.uniform(0, 5000),
+        'current_position': (np.random.uniform(0, map_size), np.random.uniform(0, map_size)),
         'direction': np.random.uniform(0, 360),
         'm': np.random.normal(76.6571, 11.06765),
         'spawn_time': 0,
         'removal_time': float('inf'),
         'positions': [],
         'stock_history': [],
-        'direction_history': [],
+        #'direction_history': [],
         'total_energy': 0,
-        'active': True,
         'patrol_time': 0,
         'patrol_distance': 0
     }
-    blue_patrol['positions'].append((blue_patrol['x'], blue_patrol['y']))
+    blue_patrol['positions'].append((blue_patrol['current position']))
     blue_patrol['stock_history'].append(blue_patrol['stock'])
-    blue_patrol['direction_history'].append(blue_patrol['direction'])
+    #blue_patrol['direction_history'].append(blue_patrol['direction'])
 
     hostile_patrol = {
         'stock': params['hostile_stock'],
-        'x': np.random.uniform(0, 5000),
-        'y': np.random.uniform(0, 5000),
-        'positions': [],
+        'current_position': (np.random.uniform(0, map_size), np.random.uniform(0, map_size)),
         'stock_history': [params['hostile_stock']],
         'spawn_time': 0,
         'removal_time': float('inf')
     }
-    hostile_patrol['positions'].append((hostile_patrol['x'], hostile_patrol['y']))
 
     total_blue_kills = 0
     total_hostile_kills = 0
-    positions = []
-    hostile_positions = []
-
+ 
     # Simulate patrol movement and combat
-    while sim_time < time_steps and blue_patrol['active'] and hostile_patrol['stock'] > 0:
+    while sim_time < time_steps and blue_patrol['stock'] > 0 and hostile_patrol['stock'] > 0:
         sim_time += dt
+        blue_position = (blue_patrol['current_position'])
 
+        # Movement section
         deviation = params['direction_deviation']
-        
         blue_patrol['direction'] = (blue_patrol['direction'] + np.random.uniform(-deviation, deviation)) % 360
-        blue_patrol['direction_history'].append(blue_patrol['direction'])
+        #if plot:
+            #blue_patrol['direction_history'].append(blue_patrol['direction'])
 
         #TODO: implement v = velocity roll (from uniform distribution by terrain factor) x [1-(total_exhaustion_percentage / 2)]
         v = np.random.uniform(0.5, 1.4)
         move_distance = v * dt * 60
-        _move_patrol(blue_patrol, move_distance, blue_patrol['direction'] )
+        blue_position, move_distance = _move(blue_position, move_distance, blue_patrol['direction'] )
+        blue_patrol['patrol_distance'] += move_distance
+        blue_patrol['current_position'] = blue_position
+        if plot:
+            blue_patrol['positions'].append(blue_position)
 
-        # This section "bounces" the patrols off the bounds of the area, to keep them from "sticking" to the edges.
-        if blue_patrol['x'] == 0:
-            blue_patrol['direction'] = 0
-        elif blue_patrol['x'] == 5000:
-            blue_patrol['direction'] = 180
-        if blue_patrol['y'] == 0:    
-            blue_patrol['direction'] = 90
-        elif blue_patrol['y'] == 5000:
-            blue_patrol['direction'] = 270
+        # This block "bounces" the patrols off the bounds of the area, to keep them from "sticking" to the edges.
+        if blue_position[0] == 0:
+            blue_patrol['direction'] = 0 + np.random.uniform(-deviation, deviation)
+        elif blue_position[0] == map_size:
+            blue_patrol['direction'] = 180 + np.random.uniform(-deviation, deviation)
+        if blue_position[1] == 0:    
+            blue_patrol['direction'] = 90 + np.random.uniform(-deviation, deviation)
+        elif blue_position[1] == map_size:
+            blue_patrol['direction'] = 270 + np.random.uniform(-deviation, deviation)
 
+        
+        #Combat section
         distance_to_enemy = np.sqrt((blue_patrol['x'] - hostile_patrol['x'])**2 + (blue_patrol['y'] - hostile_patrol['y'])**2)
         if distance_to_enemy != 0:
             prob_attack = 1 / np.sqrt(distance_to_enemy)
         else:
             prob_attack = 1
-                    
         if distance_to_enemy <= 1000 and np.random.random() < prob_attack:
             blue_kills, hostile_kills = _attack(
                 blue_patrol, hostile_patrol, params['environment'],
@@ -192,53 +182,44 @@ def run_simulation(params, plot=True):
             hostile_patrol['stock'] -= hostile_kills
             total_blue_kills += blue_kills
             total_hostile_kills += hostile_kills
-
+ 
             if blue_patrol['stock'] <= 0:
                 blue_patrol['active'] = False
-                blue_patrol['removal_time'] = t
-
+                blue_patrol['removal_time'] = sim_time
+ 
         blue_patrol['stock_history'].append(blue_patrol['stock'])
         hostile_patrol['stock_history'].append(hostile_patrol['stock'])
-        positions.append((blue_patrol['x'], blue_patrol['y']))
-        hostile_positions.append((hostile_patrol['x'], hostile_patrol['y']))
-
+        
+        blue_patrol['patrol_time'] += dt
+        
+    
     # Convert all positions to lists for JSON serialization
     blue_positions_list = [list(pos) for pos in blue_patrol['positions']]
-    hostile_positions_list = [list(pos) for pos in hostile_patrol['positions']]
-    time_steps_list = list(time_steps[:len(positions)])
 
     # Optionally, convert stock_history and direction_history if needed
     blue_stock_history = list(blue_patrol['stock_history'])
-    blue_direction_history = list(blue_patrol['direction_history'])
+    #blue_direction_history = list(blue_patrol['direction_history'])
     hostile_stock_history = list(hostile_patrol['stock_history'])
-
+ 
     # Prepare patrols for serialization
     blue_patrol_serializable = {
         **blue_patrol,
         'positions': blue_positions_list,
         'stock_history': blue_stock_history,
-        'direction_history': blue_direction_history
-    }
-    hostile_patrol_serializable = {
-        **hostile_patrol,
-        'positions': hostile_positions_list,
-        'stock_history': hostile_stock_history
+        #'direction_history': blue_direction_history
     }
 
+    hostile_patrol_serializable = {
+        **hostile_patrol,
+        'stock_history': hostile_stock_history
+    }
+ 
     result = {
         'blue': blue_patrol_serializable,
         'hostile': hostile_patrol_serializable,
-        'positions': blue_positions_list,  # Use blue_patrol['positions']
-        'hostile_positions': hostile_positions_list,  # Use hostile_patrol['positions']
+        'positions': blue_positions_list,   # Will only contain blue spawn position if plot=False.
         'total_blue_kills': int(total_blue_kills),
         'total_hostile_kills': int(total_hostile_kills),
-        'time_steps': time_steps_list
     }
-    return make_json_safe(result)
 
-def new_func(blue_patrol, move_distance):
-    blue_patrol['x'] += move_distance * cos(radians(blue_patrol['direction']))
-    blue_patrol['y'] += move_distance * sin(radians(blue_patrol['direction']))
-    blue_patrol['x'] = np.clip(blue_patrol['x'], 0, 5000)
-    blue_patrol['y'] = np.clip(blue_patrol['y'], 0, 5000)
-    blue_patrol['positions'].append((blue_patrol['x'], blue_patrol['y']))
+    return make_json_safe(result)
