@@ -16,18 +16,18 @@ def index():
 @app.route("/run_simulation")
 def run_simulation_endpoint():
     blue_stock = int(request.args.get("blue_stock", 10))
-    hostile_stock = int(request.args.get("hostile_stock", 10))
+    red_stock = int(request.args.get("red_stock", 10))
     direction_deviation = int(request.args.get("direction_deviation", 10))
     armor_type = request.args.get("armor_type", "Basilone Ballistic Insert")
     environment = request.args.get("environment", "Krulak’s Three Block War")
     params = {
         "blue_stock": blue_stock,
-        "hostile_stock": hostile_stock,
+        "red_stock": red_stock,
         "direction_deviation": direction_deviation,
         "armor_type": armor_type,
         "environment": environment
     }
-    results = run_simulation(params, plot=True)
+    results = run_simulation(params, full_log=True)
     return jsonify(results)
 
 if __name__ == "__main__":
