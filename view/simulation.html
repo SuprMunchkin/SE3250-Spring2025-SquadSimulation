@@ -133,7 +133,7 @@
                 .then(response => response.json())
                 .then(data => {
                     // Display the results
-                    drawPath(data.blue_positions, data.hostile_position);
+                    drawPath(data.blue_positions, data.hostile.current_position);
                     document.getElementById('results').textContent = formatResults(data);
                 });
         }

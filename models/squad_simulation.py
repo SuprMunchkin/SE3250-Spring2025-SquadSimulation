@@ -213,9 +213,8 @@ def run_simulation(params, map=True):
     # Convert all positions to lists for JSON serialization
     blue_positions_list = [list(pos) for pos in blue_patrol['positions']]
 
-    # Optionally, convert stock_history and direction_history if needed
+    # Optionally, convert stock_history if needed
     blue_stock_history = list(blue_patrol['stock_history'])
-    #blue_direction_history = list(blue_patrol['direction_history'])
     hostile_stock_history = list(hostile_patrol['stock_history'])
  
     # Prepare patrols for serialization
