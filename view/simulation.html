@@ -44,8 +44,8 @@
             <label for="blue_stock">Blue Stock:</label>
             <input type="number" id="blue_stock" name="blue_stock" value="10" min="1" max="20">
             <br>
-            <label for="hostile_stock">Hostile Stock:</label>
-            <input type="number" id="hostile_stock" name="hostile_stock" value="10" min="1" max="40">
+            <label for="red_stock">red Stock:</label>
+            <input type="number" id="red_stock" name="red_stock" value="10" min="1" max="40">
             <br>
             <label for="direction_deviation">Direction Deviation:</label>
             <input type="number" id="direction_deviation" name="direction_deviation" value="10" min="0" max="45" step="5">
@@ -133,12 +133,12 @@
                 .then(response => response.json())
                 .then(data => {
                     // Display the results
-                    drawPath(data.blue_positions, data.hostile.current_position);
+                    drawPath(data.blue_positions, data.red.current_position);
                     document.getElementById('results').textContent = formatResults(data);
                 });
         }
 
-        function drawPath(bluePath, hostilePosition) {
+        function drawPath(bluePath, redPosition) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Draw blue path
@@ -164,11 +164,11 @@
             }
 
             /*           
-            // Draw hostile path
-            if (hostilePath && hostilePath.length > 0) {
+            // Draw red path
+            if (redPath && redPath.length > 0) {
                 ctx.strokeStyle = 'red';
                 ctx.beginPath();
-                hostilePath.forEach(([x, y], i) => {
+                redPath.forEach(([x, y], i) => {
                     let sx = x / 5000 * canvas.width;
                     let sy = (5000-y) / 5000 * canvas.height;
                     if (i === 0) ctx.moveTo(sx, sy);
@@ -177,8 +177,8 @@
                 ctx.stroke(); 
             */
 
-            // Draw hostile unit as a red circle at its last position
-            let [hx, hy] = hostilePosition;
+            // Draw red unit as a red circle at its last position
+            let [hx, hy] = redPosition;
             let hsx = hx / 5000 * canvas.width;
             let hsy = (5000-hy) / 5000 * canvas.height;
             ctx.fillStyle = 'red';
@@ -197,7 +197,7 @@
 
         function formatResults(data) {
             let output = `👥 Blue Remaining: ${data.blue.stock}\n`;
-            output += `🔴 Hostile Remaining: ${data.hostile.stock}\n`;
+            output += `🔴 red Remaining: ${data.red.stock}\n`;
             return output;
         }
     </script>

@@ -18,8 +18,8 @@ threat_library:
 fire_rates:
   blue_min: 1
   blue_max: 15
-  hostile_min: 1
-  hostile_max: 10
+  red_min: 1
+  red_max: 10
 
 armor_profiles:
   Basilone Ballistic Insert:

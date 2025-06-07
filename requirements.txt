@@ -1,7 +1,13 @@
-flask
+#Data infrastructure
 se-lib
 numpy
-matplotlib
-PyYAML
 pandas
+PyYAML
+
+#Web framework
+flask
+
+#Jypiter notebook visualization
+matplotlib
 ipywidgets
+tqdm
