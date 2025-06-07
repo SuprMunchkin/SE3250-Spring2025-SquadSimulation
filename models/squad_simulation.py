@@ -123,8 +123,8 @@ def run_simulation(params, map=True):
         'total_energy': 0,
         'patrol_time': 0,
         'patrol_distance': 0,
-        'total_shots': 0,
-        'total_kills': 0 
+        'shots': 0,
+        'kills': 0 
     }
 
     blue_patrol['positions'].append((blue_patrol['current_position']))
@@ -136,8 +136,8 @@ def run_simulation(params, map=True):
         'stock_history': [params['hostile_stock']],
         'spawn_time': 0,
         'removal_time': float('inf'),
-        'total_shots': 0,
-        'total_kills': 0,
+        'shots': 0,
+        'kills': 0,
     }
 
     combat_log = []
@@ -223,7 +223,6 @@ def run_simulation(params, map=True):
         **blue_patrol,
         'positions': blue_positions_list,
         'stock_history': blue_stock_history,
-        #'direction_history': blue_direction_history
     }
 
     hostile_patrol_serializable = {
