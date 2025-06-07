@@ -96,7 +96,7 @@ def make_json_safe(obj):
         return make_json_safe(obj.tolist())
     return obj
  
-def run_simulation(params, plot=True):
+def run_simulation(params, map=True):
     """ Simulates a patrol operation between blue and hostile forces on a terrain defined by the map_size parmeter. 
     Origin is at the bottom left corner, direction 0 is to the right and rotates counter-clockwise.
     Args:
@@ -122,8 +122,11 @@ def run_simulation(params, plot=True):
         'stock_history': [],
         'total_energy': 0,
         'patrol_time': 0,
-        'patrol_distance': 0
+        'patrol_distance': 0,
+        'total_shots': 0,
+        'total_kills': 0 
     }
+
     blue_patrol['positions'].append((blue_patrol['current_position']))
     blue_patrol['stock_history'].append(blue_patrol['stock'])
 
@@ -132,13 +135,11 @@ def run_simulation(params, plot=True):
         'current_position': (np.random.uniform(0, map_size), np.random.uniform(0, map_size)),
         'stock_history': [params['hostile_stock']],
         'spawn_time': 0,
-        'removal_time': float('inf')
+        'removal_time': float('inf'),
+        'total_shots': 0,
+        'total_kills': 0,
     }
 
-    total_blue_kills = 0
-    total_blue_shots = 0
-    total_hostile_kills = 0
-    total_hostile_shots = 0
     combat_log = []
 
     # Simulate patrol movement and combat
@@ -156,7 +157,7 @@ def run_simulation(params, plot=True):
         blue_position, move_distance = _move(blue_position, move_distance, blue_patrol['direction'] )
         blue_patrol['patrol_distance'] += move_distance
         blue_patrol['current_position'] = blue_position
-        if plot:
+        if map:
             blue_patrol['positions'].append(blue_position)
 
         # This block "bounces" the patrols off the bounds of the area, to keep them from "sticking" to the edges.
@@ -182,10 +183,10 @@ def run_simulation(params, plot=True):
             )
             blue_patrol['stock'] -= attack_result['blue_kills']
             hostile_patrol['stock'] -= attack_result['hostile_kills']
-            total_blue_kills += attack_result['blue_kills']
-            total_hostile_kills += attack_result['hostile_kills']
-            total_blue_shots = attack_result['blue_shots']
-            total_hostile_shots = attack_result['hostile_shots']
+            blue_patrol['kills'] += attack_result['blue_kills']
+            hostile_patrol['kills'] += attack_result['hostile_kills']
+            blue_patrol['shots'] = attack_result['blue_shots']
+            hostile_patrol['shots'] = attack_result['hostile_shots']
 
             # Log this combat event
             combat_log.append({
@@ -234,13 +235,6 @@ def run_simulation(params, plot=True):
         'blue': blue_patrol_serializable,
         'hostile': hostile_patrol_serializable,
         'blue_positions': blue_positions_list,   # Will only contain blue spawn position if plot=False.
-        'hostile_position': hostile_patrol['current_position'],
-        'total_blue_kills': int(total_blue_kills),
-        'total_hostile_kills': int(total_hostile_kills),
-        'total_blue_shots': int(total_blue_shots),
-        'total_hostile_shots': int(total_hostile_shots),
-        'total_patrol_distance': blue_patrol['patrol_distance'],
-        'total_patrol_time': blue_patrol['patrol_time'],
         'combat_log': combat_log 
     }
 

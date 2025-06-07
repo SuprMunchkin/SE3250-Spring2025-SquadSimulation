@@ -27,7 +27,7 @@ def run_simulation_endpoint():
         "armor_type": armor_type,
         "environment": environment
     }
-    results = run_simulation(params, plot=True)
+    results = run_simulation(params, map=True)
     return jsonify(results)
 
 if __name__ == "__main__":
