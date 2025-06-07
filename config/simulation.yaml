@@ -1,7 +1,27 @@
-map_size: 5000
-stop_time: 4320
+# Default values for the parameters of the simulation.
+map_size: 5000 # Given in meters
+stop_time: 480 # Given in minutes. 480 = 8 hours (default value) 
+
+fire_rates: 
+  # Given in aimed shots per minute.
+  blue_min: 1
+  blue_max: 25
+  red_min: 1
+  red_max: 25
+
+terrain_library:
+  # These are the terrain types and their associated movement costs.
+  # Values are given in Joules per meter?
+  paved: 1.0 
+  dirt_road: 1.1
+  light_brush: 1.2
+  heavy_brush: 1.5
+  loose_sand: 2.1
 
 threat_library:
+  # Format: [a, b, c] 
+  # contstants a projectile velocity function: v(x) = ax^2 + bx + c 
+  # where x is the distance in meters between the shooter and target.
   Garnet: [0.0011, -2.9354, 2844.8]
   Amethyst: [0.0017, -4.2007, 3167.4]
   Aquamarine: [0.001, -2.8943, 2836.6]
@@ -15,14 +35,13 @@ threat_library:
   Topaz: [0.0015, -4.0872, 3160.6]
   Zircon: [0.0007, -2.4835, 2782.8]
 
-fire_rates:
-  blue_min: 1
-  blue_max: 15
-  red_min: 1
-  red_max: 10
-
 armor_profiles:
+  # Mass is given in kg.
+  # Threats are given in the form of [a, b] which are parameters of a beta distribution that 
+  # determines the probability of the given threat penetrating the armor. 
+  # p(v) = exp(a + bv) where v is the velocity of the projectile in m/s.
   Basilone Ballistic Insert:
+    Mass: 8.3043963255
     Garnet: [-15, 0.004]
     Amethyst: [-17, 0.004]
     Aquamarine: [-14, 0.004]
@@ -36,6 +55,7 @@ armor_profiles:
     Topaz: [-20, 0.004]
     Zircon: [-8, 0.004]
   Chesty Ballistic Insert:
+    Mass: 6.35042018586
     Garnet: [-14, 0.004]
     Amethyst: [-10, 0.004]
     Aquamarine: [-8, 0.004]
@@ -49,6 +69,7 @@ armor_profiles:
     Topaz: [-16, 0.004]
     Zircon: [-2, 0.004]
   Hathcock Ballistic Insert:
+    Mass: 4.39644405
     Garnet: [-8, 0.004]
     Amethyst: [-6, 0.004]
     Aquamarine: [-4, 0.004]
@@ -63,6 +84,8 @@ armor_profiles:
     Zircon: [-1, 0.004]
 
 threat_probs:
+  # These are the probabilities of each threat being present in a given scenario.
+  # Scenarios are orderd in acending challenge level.
   Krulak’s Three Block War:
     Garnet: 0.01
     Amethyst: 0
