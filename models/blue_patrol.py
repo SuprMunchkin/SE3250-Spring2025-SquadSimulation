@@ -33,6 +33,7 @@ class Patrol:
         armor = params['armor_type']
         if armor not in armor_profiles:
             raise ValueError(f"Armor type '{armor}' not found in armor profiles.")
+        self.exhaustion = 0
         self.exhaustion_data = []
         for _ in range(self.stock):
             soldier_mass = np.random.normal(76.6571, 11.06765)
@@ -80,7 +81,6 @@ class Patrol:
         self.current_position = new_position
         self.position_history.append(new_position)
         self._update_terrain()
-
         return
 
     def update_patrol_time(self, sim_time):
@@ -167,8 +167,9 @@ class Patrol:
         # Update direction with deviation
         self.direction = (self.direction + np.random.uniform(-deviation, deviation)) % 360
         # Calculate move speed and distance
-        move_speed = np.random.uniform(0.5, 1.4)
+        move_speed = np.random.uniform(0.5, 1.4) / terrain_library[self.current_terrain][0]  # Adjust speed based on terrain factor
         move_distance = move_speed * dt * 60
+        move_speed *= ( 1 - ( self.exhaustion / (2 * self.get_exhaustion_threshold()) ) )# Adjust speed based on exhaustion level
         # Move and update position
         self.move(move_distance, deviation)
         return
