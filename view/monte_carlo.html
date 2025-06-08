@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Monte Carlo Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #mc-form {
+            display: inline-block;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .form-group {
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        .form-group label,
+        .form-group input,
+        .form-group select {
+            display: block;
+            margin: 0 auto;
+        }
+        #histogram {
+            margin: 20px auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Monte Carlo Simulation</h1>
+    <form id="mc-form">
+        <div class="form-group">
+            <label for="num_runs">Number of Runs:</label>
+            <input type="number" id="num_runs" name="num_runs" value="100" min="1" max="10000">
+            <br>
+            <label for="blue_stock">Blue Stock:</label>
+            <input type="number" id="blue_stock" name="blue_stock" value="10" min="1" max="20">
+            <br>
+            <label for="red_stock">Red Stock:</label>
+            <input type="number" id="red_stock" name="red_stock" value="10" min="1" max="40">
+            <br>
+            <label for="direction_deviation">Direction Deviation:</label>
+            <input type="number" id="direction_deviation" name="direction_deviation" value="10" min="0" max="45" step="5">
+        </div>
+        <div class="form-group">
+            <label for="armor_type">Armor Type:</label>
+            <select id="armor_type" name="armor_type">
+                <option value="Basilone Ballistic Insert">Basilone Ballistic Insert</option>
+                <option value="Chesty Ballistic Insert">Chesty Ballistic Insert</option>
+                <option value="Hathcock Ballistic Insert">Hathcock Ballistic Insert</option>
+            </select>
+            <br>
+            <label for="environment">Environment:</label>
+            <select id="environment" name="environment">
+                <option value="Krulak’s Three Block War">Krulak’s Three Block War</option>
+                <option value="Pershing’s Ghost">Pershing’s Ghost</option>
+                <option value="Nightmare from Mattis Street">Nightmare from Mattis Street</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <button type="submit">Run Monte Carlo</button>
+            <button type="button" id="clear-btn">Clear</button>
+        </div>
+    </form>
+    <div id="results"></div>
+    <canvas id="histogram" width="600" height="300"></canvas>
+    <script>
+        let chart = null;
+        document.getElementById('mc-form').onsubmit = async function(e) {
+            e.preventDefault();
+            // Clear previous output immediately
+            document.getElementById('results').innerHTML = '';
+            const ctx = document.getElementById('histogram').getContext('2d');
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            ctx.clearRect(0, 0, 600, 300);
+
+            const params = new URLSearchParams(new FormData(this));
+            const res = await fetch('/run_monte_carlo?' + params);
+            const data = await res.json();
+            document.getElementById('results').innerHTML = `
+                <h2>Results</h2>
+                <p>Number of Runs: ${data.num_runs}</p>
+                <p>Average Score: ${data.avg_score}</p>
+            `;
+
+            // Extract scores
+            const scores = data.all_results.map(r => r.score || 0);
+
+            // Create histogram bins
+            const binCount = 10;
+            const min = Math.min(...scores);
+            const max = Math.max(...scores);
+            const binSize = (max - min) / binCount || 1;
+            const bins = Array(binCount).fill(0);
+            scores.forEach(score => {
+                let idx = Math.floor((score - min) / binSize);
+                if (idx >= binCount) idx = binCount - 1;
+                bins[idx]++;
+            });
+            const labels = [];
+            for (let i = 0; i < binCount; i++) {
+                const rangeStart = (min + i * binSize).toFixed(2);
+                const rangeEnd = (min + (i + 1) * binSize).toFixed(2);
+                labels.push(`${rangeStart} - ${rangeEnd}`);
+            }
+
+            // Draw histogram
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Score Distribution',
+                        data: bins,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Score Range' } },
+                        y: { title: { display: true, text: 'Frequency' }, beginAtZero: true }
+                    }
+                }
+            });
+        };
+
+        document.getElementById('clear-btn').onclick = function() {
+            document.getElementById('results').innerHTML = '';
+            const ctx = document.getElementById('histogram').getContext('2d');
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            ctx.clearRect(0, 0, 600, 300);
+        };
+    </script>
+</body>
+</html>
