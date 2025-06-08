@@ -88,7 +88,7 @@ def run_simulation(params, full_log=True):
     sim_time = 0
     dt = 1
 
-    blue_patrol = Patrol(params)
+    blue_patrol = Patrol(params, full_log)
 
     blue_patrol.position_history.append((blue_patrol.current_position))
     blue_patrol.stock_history.append((blue_patrol.stock, 0))
@@ -111,7 +111,7 @@ def run_simulation(params, full_log=True):
         blue_patrol.patrol_time = sim_time - blue_patrol.spawn_time
 
         deviation = params['direction_deviation']
-        move_speed, move_distance, traveled = blue_patrol.step(dt, deviation, map_size)
+        blue_patrol.step(dt, deviation)
 
         #Combat section
         distance_to_enemy = dist(blue_patrol.current_position, red_patrol['current_position'])
@@ -151,7 +151,9 @@ def run_simulation(params, full_log=True):
             
         else:
             # Exhaustion checks only happen if the patrol is not engaged in combat.
-            if blue_patrol.set_exhaustion(move_speed):
+            # This code smells bad: set functions should not return. Make an is_exhausted function instead.
+            blue_patrol.set_exhaustion()
+            if blue_patrol.is_exhausted():
                 blue_patrol.removal_time = sim_time
                 break
         
