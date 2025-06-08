@@ -3,60 +3,57 @@ from math import cos, sin, radians, dist
 import os
 import yaml
 
-# Load config (if needed for armor_profiles)
+# Load config
 yaml_path = os.path.join(os.path.dirname(__file__), "../config/simulation.yaml")
 with open(yaml_path, "r") as f:
     config = yaml.safe_load(f)
 armor_profiles = config["armor_profiles"]
 map_size = config["map_size"]
-
-def move(start, distance, direction, bound=map_size):
-    x = start[0]
-    y = start[1]
-    x += distance * cos(radians(direction))
-    y += distance * sin(radians(direction))
-    x = np.clip(x, 0, bound)
-    y = np.clip(y, 0, bound)
-    end = (x, y)
-    travel = dist(start, end)
-    return end, travel
+terrain_library = config["terrain_library"]
 
 class Patrol:
-    def __init__(self, params):
+    def __init__(self, params, full_log=True):
+        self.full_log = full_log
         self.stock = params['blue_stock']
+        self.stock_history = [(self.stock, 0)]
         self.current_position = (np.random.uniform(0, map_size), np.random.uniform(0, map_size))
+        self.position_history = [self.current_position]
         self.direction = np.random.uniform(0, 360)
-        # Directly initialize exhaustion_data here
+        self.move_speed = 0 # m/dt
+        self.spawn_time = 0
+        self.removal_time = float('inf')
+        self.patrol_time = 0
+        self.patrol_distance = 0
+        self.shots = 0
+        self.kills = 0
+        self.terrain_change_interval = np.random.randint(1, 11)
+        self.terrain_change_counter = 0
+        self.current_terrain = np.random.choice(list(terrain_library.keys()))
+        self.terrain_history = [self.current_terrain]
         armor = params['armor_type']
-        squad_size = params['blue_stock']
         if armor not in armor_profiles:
             raise ValueError(f"Armor type '{armor}' not found in armor profiles.")
         self.exhaustion_data = []
-        for _ in range(squad_size):
+        for _ in range(self.stock):
             soldier_mass = np.random.normal(76.6571, 11.06765)
-            soldier_load = 20.6497926 + armor_profiles[armor]['Mass']
+            soldier_load = 20.6497926 + armor_profiles[armor]['Mass'] # Base Combat Load (kg) (Fish and Scharre, 2018, p. 13)
             self.exhaustion_data.append({
                 'soldier': soldier_mass,
                 'load': soldier_load,
                 'joules_expended': 0, 
                 'exhaustion_level': 0
             })
-        self.spawn_time = 0
-        self.removal_time = float('inf')
-        self.position_history = [self.current_position]
-        self.stock_history = [(self.stock, 0)]
-        self.total_energy = 0
-        self.patrol_time = 0
-        self.patrol_distance = 0
-        self.shots = 0
-        self.kills = 0
-        self.exhaustion = 0
 
     def move(self, move_distance, deviation):
         self.direction = (self.direction + np.random.uniform(-deviation, deviation)) % 360
-        new_position, traveled = move(self.current_position, move_distance, self.direction, bound=map_size)
+        # Calculate new position
+        x = self.current_position[0] + move_distance * np.cos(np.radians(self.direction))
+        y = self.current_position[1] + move_distance * np.sin(np.radians(self.direction))
+        x = np.clip(x, 0, map_size)
+        y = np.clip(y, 0, map_size)
+        new_position = (x, y)
+        traveled = dist(self.current_position, new_position)
         # Edge bounce logic
-        x, y = new_position
         bounced = False
         if x <= 0:
             self.direction = 0 + np.random.uniform(-deviation, deviation)
@@ -72,11 +69,19 @@ class Patrol:
             bounced = True
         if bounced:
             # Optionally, move again in the new direction to avoid sticking to the edge
-            new_position, traveled = move(self.current_position, move_distance, self.direction, bound=map_size)
+            x = self.current_position[0] + move_distance * np.cos(np.radians(self.direction))
+            y = self.current_position[1] + move_distance * np.sin(np.radians(self.direction))
+            x = np.clip(x, 0, map_size)
+            y = np.clip(y, 0, map_size)
+            new_position = (x, y)
+            traveled = dist(self.current_position, new_position)
         self.patrol_distance += traveled
+        self.move_speed = traveled 
         self.current_position = new_position
         self.position_history.append(new_position)
-        return traveled
+        self._update_terrain()
+
+        return
 
     def update_patrol_time(self, sim_time):
         self.patrol_time = sim_time - self.spawn_time
@@ -96,7 +101,7 @@ class Patrol:
             'removal_time': self.removal_time,
             'position_history': pos_hist,
             'stock_history': stock_hist,
-            'total_energy': self.total_energy,
+            'exhaustion_data': self.exhaustion_data,
             'patrol_time': self.patrol_time,
             'patrol_distance': self.patrol_distance,
             'shots': self.shots,
@@ -104,22 +109,17 @@ class Patrol:
             'exhaustion': self.exhaustion
         }
 
-    def set_exhaustion(self, move_speed):
+    def set_exhaustion(self):
         """
         Updates the exhaustion state for the patrol and returns True if exhaustion threshold is reached.
         """
         # Calculate exhaustion threshold based on patrol time (in minutes)
-        patrol_time = self.patrol_time
-        exhaustion_threshold = max(0, (
-            -0.0841 * (patrol_time/60)**4 + 2.9025*(patrol_time/60)**3 -
-            41.059*(patrol_time/60)**2 + 195.14*(patrol_time/60) + 294.05
-        ))
 
         data = self.exhaustion_data
-        speed = move_speed
-        grade = np.random.normal(0, 6)  # Random terrain factor (0 to 6)
-        eta = 1  # Energy expenditure factor
-        D = 1 if grade < 0 else 0
+        speed = self.move_speed
+        grade = np.random.normal(0, 6) 
+        terrain_factor = terrain_library[self.current_terrain][0] # Terrain factor from the library
+        downhill_adjustment = 1 if grade < 0 else 0 
 
         for soldier in data:
             mass = soldier['soldier']
@@ -128,8 +128,8 @@ class Patrol:
             P = (
                 1.5 * mass +
                 2.0 * (mass + load) * (load / mass)**2 +
-                eta * (mass + load) * (1.5 * speed**2 + 0.35 * speed * grade) -
-                D * eta * (
+                terrain_factor * (mass + load) * (1.5 * speed**2 + 0.35 * speed * grade) -
+                downhill_adjustment * terrain_factor * (
                     (grade * speed * (mass + load) / 3.5) -
                     ((mass + load) * (grade + 6)**2 / mass) +
                     (25 - speed**2)
@@ -137,29 +137,55 @@ class Patrol:
             )
             energy_expended = P * 60
             soldier['joules_expended'] += energy_expended
-            average_power_output = energy_expended / (patrol_time * 60) if patrol_time > 0 else 0
+            average_power_output = energy_expended / (self.patrol_time * 60) if self.patrol_time > 0 else 0
+            exhaustion_threshold = self.get_exhaustion_threshold()
             soldier['exhaustion_level'] = average_power_output / exhaustion_threshold if exhaustion_threshold > 0 else 0
 
         self.exhaustion = np.mean([s['exhaustion_level'] for s in data])
+        if self.full_log:
+            self.exhaustion_data.append(self.exhaustion)
         # Return True if patrol is exhausted
-        return self.exhaustion >= exhaustion_threshold
+        return 
+  
+    def get_exhaustion_threshold(self):
+        """
+        Calculate the exhaustion threshold based on the patrol time.
+        """
+        patrol_time = self.patrol_time
+        return max(0, (
+            -0.0841 * (patrol_time/60)**4 + 2.9025*(patrol_time/60)**3 -
+            41.059*(patrol_time/60)**2 + 195.14*(patrol_time/60) + 294.05
+        ))
 
-    def step(self, dt, deviation, map_size):
+    def is_exhausted(self):
+        """
+        Check if the patrol is exhausted based on the exhaustion level.
+        """
+        return self.exhaustion >= self.get_exhaustion_threshold()
+
+    def step(self, dt, deviation):
         # Update direction with deviation
         self.direction = (self.direction + np.random.uniform(-deviation, deviation)) % 360
         # Calculate move speed and distance
         move_speed = np.random.uniform(0.5, 1.4)
         move_distance = move_speed * dt * 60
         # Move and update position
-        traveled = self.move(move_distance, deviation)
-        return move_speed, move_distance, traveled
+        self.move(move_distance, deviation)
+        return
 
-    def bounce_if_at_edge(self, map_size, deviation):
-        if self.current_position[0] == 0:
-            self.direction = 0 + np.random.uniform(-deviation, deviation)
-        elif self.current_position[0] == map_size:
-            self.direction = 180 + np.random.uniform(-deviation, deviation)
-        if self.current_position[1] == 0:
-            self.direction = 90 + np.random.uniform(-deviation, deviation)
-        elif self.current_position[1] == map_size:
-            self.direction = 270 + np.random.uniform(-deviation, deviation)
+    def _update_terrain(self):
+        """
+        Change the terrain type for the patrol.
+        """
+        self.terrain_change_counter += 1
+        if self.terrain_change_counter >= self.terrain_change_interval:
+            terrain_roll = np.random.randint(1, 101)
+            for terrain_name, values in terrain_library.items():
+                if values[1] <= terrain_roll:
+                    self.current_terrain = terrain_name
+                    break
+
+        self.terrain_change_counter = 0
+        self.terrain_change_interval = np.random.randint(1, 11)
+        if self.full_log:
+            self.terrain_history.append(self.current_terrain)
