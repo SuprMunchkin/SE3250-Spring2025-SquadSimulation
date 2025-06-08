@@ -24,7 +24,7 @@
             display: block;
             margin: 0 auto;
         }
-        #histogram {
+        #histogram, #exhaustion-histogram, #distance-histogram {
             margin: 20px auto;
             display: block;
         }
@@ -68,18 +68,25 @@
     </form>
     <div id="results"></div>
     <canvas id="histogram" width="600" height="300"></canvas>
+    <canvas id="exhaustion-histogram" width="600" height="300"></canvas>
+    <canvas id="distance-histogram" width="600" height="300"></canvas>
     <script>
         let chart = null;
+        let exhaustionChart = null;
+        let distanceChart = null;
         document.getElementById('mc-form').onsubmit = async function(e) {
             e.preventDefault();
             // Clear previous output immediately
             document.getElementById('results').innerHTML = '';
             const ctx = document.getElementById('histogram').getContext('2d');
-            if (chart) {
-                chart.destroy();
-                chart = null;
-            }
+            const exhaustionCtx = document.getElementById('exhaustion-histogram').getContext('2d');
+            const distanceCtx = document.getElementById('distance-histogram').getContext('2d');
+            if (chart) { chart.destroy(); chart = null; }
             ctx.clearRect(0, 0, 600, 300);
+            if (exhaustionChart) { exhaustionChart.destroy(); exhaustionChart = null; }
+            exhaustionCtx.clearRect(0, 0, 600, 300);
+            if (distanceChart) { distanceChart.destroy(); distanceChart = null; }
+            distanceCtx.clearRect(0, 0, 600, 300);
 
             const params = new URLSearchParams(new FormData(this));
             const res = await fetch('/run_monte_carlo?' + params);
@@ -90,10 +97,8 @@
                 <p>Average Score: ${data.avg_score}</p>
             `;
 
-            // Extract scores
+            // Score histogram (existing)
             const scores = data.all_results.map(r => r.score || 0);
-
-            // Create histogram bins
             const binCount = 10;
             const min = Math.min(...scores);
             const max = Math.max(...scores);
@@ -110,8 +115,6 @@
                 const rangeEnd = (min + (i + 1) * binSize).toFixed(2);
                 labels.push(`${rangeStart} - ${rangeEnd}`);
             }
-
-            // Draw histogram
             chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -129,16 +132,89 @@
                     }
                 }
             });
+
+            // Exhaustion histogram (existing)
+            const exhaustionLevels = data.all_results.map(r => r.squad_exhaustion ?? 0);
+            const exMin = Math.min(...exhaustionLevels);
+            const exMax = Math.max(...exhaustionLevels);
+            const exBinSize = (exMax - exMin) / binCount || 1;
+            const exBins = Array(binCount).fill(0);
+            exhaustionLevels.forEach(val => {
+                let idx = Math.floor((val - exMin) / exBinSize);
+                if (idx >= binCount) idx = binCount - 1;
+                exBins[idx]++;
+            });
+            const exLabels = [];
+            for (let i = 0; i < binCount; i++) {
+                const rangeStart = (exMin + i * exBinSize).toFixed(2);
+                const rangeEnd = (exMin + (i + 1) * exBinSize).toFixed(2);
+                exLabels.push(`${rangeStart} - ${rangeEnd}`);
+            }
+            exhaustionChart = new Chart(exhaustionCtx, {
+                type: 'bar',
+                data: {
+                    labels: exLabels,
+                    datasets: [{
+                        label: 'Squad Exhaustion Level Distribution',
+                        data: exBins,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Exhaustion Level Range' } },
+                        y: { title: { display: true, text: 'Frequency' }, beginAtZero: true }
+                    }
+                }
+            });
+
+            // Distance traveled histogram (NEW)
+            const distances = data.all_results.map(r => r.distance_traveled ?? 0);
+            const dMin = Math.min(...distances);
+            const dMax = Math.max(...distances);
+            const dBinSize = (dMax - dMin) / binCount || 1;
+            const dBins = Array(binCount).fill(0);
+            distances.forEach(val => {
+                let idx = Math.floor((val - dMin) / dBinSize);
+                if (idx >= binCount) idx = binCount - 1;
+                dBins[idx]++;
+            });
+            const dLabels = [];
+            for (let i = 0; i < binCount; i++) {
+                const rangeStart = (dMin + i * dBinSize).toFixed(2);
+                const rangeEnd = (dMin + (i + 1) * dBinSize).toFixed(2);
+                dLabels.push(`${rangeStart} - ${rangeEnd}`);
+            }
+            distanceChart = new Chart(distanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: dLabels,
+                    datasets: [{
+                        label: 'Distance Traveled Distribution',
+                        data: dBins,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Distance Range' } },
+                        y: { title: { display: true, text: 'Frequency' }, beginAtZero: true }
+                    }
+                }
+            });
         };
 
         document.getElementById('clear-btn').onclick = function() {
             document.getElementById('results').innerHTML = '';
             const ctx = document.getElementById('histogram').getContext('2d');
-            if (chart) {
-                chart.destroy();
-                chart = null;
-            }
+            if (chart) { chart.destroy(); chart = null; }
             ctx.clearRect(0, 0, 600, 300);
+            const exhaustionCtx = document.getElementById('exhaustion-histogram').getContext('2d');
+            if (exhaustionChart) { exhaustionChart.destroy(); exhaustionChart = null; }
+            exhaustionCtx.clearRect(0, 0, 600, 300);
+            const distanceCtx = document.getElementById('distance-histogram').getContext('2d');
+            if (distanceChart) { distanceChart.destroy(); distanceChart = null; }
+            distanceCtx.clearRect(0, 0, 600, 300);
         };
     </script>
 </body>

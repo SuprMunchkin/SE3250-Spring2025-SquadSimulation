@@ -33,17 +33,18 @@ class Patrol:
         armor = params['armor_type']
         if armor not in armor_profiles:
             raise ValueError(f"Armor type '{armor}' not found in armor profiles.")
-        self.exhaustion = 0
-        self.exhaustion_data = []
+        self.squad_exhaustion = 0
+        self.squad_data = []
         for _ in range(self.stock):
             soldier_mass = np.random.normal(76.6571, 11.06765)
             soldier_load = 20.6497926 + armor_profiles[armor]['Mass'] # Base Combat Load (kg) (Fish and Scharre, 2018, p. 13)
-            self.exhaustion_data.append({
+            self.squad_data.append({
                 'soldier': soldier_mass,
                 'load': soldier_load,
                 'joules_expended': 0, 
                 'exhaustion_level': 0
             })
+        self.exhaustion_data = []
 
     def move(self, move_distance, deviation):
         self.direction = (self.direction + np.random.uniform(-deviation, deviation)) % 360
@@ -69,13 +70,13 @@ class Patrol:
             self.direction = 270 + np.random.uniform(-deviation, deviation)
             bounced = True
         if bounced:
-            # Optionally, move again in the new direction to avoid sticking to the edge
+            # Move again in the new direction to use the full move distance.
             x = self.current_position[0] + move_distance * np.cos(np.radians(self.direction))
             y = self.current_position[1] + move_distance * np.sin(np.radians(self.direction))
             x = np.clip(x, 0, map_size)
             y = np.clip(y, 0, map_size)
             new_position = (x, y)
-            traveled = dist(self.current_position, new_position)
+            traveled += dist(self.current_position, new_position)
         self.patrol_distance += traveled
         self.move_speed = traveled 
         self.current_position = new_position
@@ -96,26 +97,25 @@ class Patrol:
             'stock': self.stock,
             'current_position': list(self.current_position),
             'direction': self.direction,
-            'exhaustion_data': self.exhaustion_data,
+            'exhaustion_data': self.squad_data,
             'spawn_time': self.spawn_time,
             'removal_time': self.removal_time,
             'position_history': pos_hist,
             'stock_history': stock_hist,
-            'exhaustion_data': self.exhaustion_data,
+            'exhaustion_data': self.squad_data,
             'patrol_time': self.patrol_time,
             'patrol_distance': self.patrol_distance,
             'shots': self.shots,
             'kills': self.kills,
-            'exhaustion': self.exhaustion
+            'exhaustion': self.squad_exhaustion
         }
 
     def set_exhaustion(self):
         """
-        Updates the exhaustion state for the patrol and returns True if exhaustion threshold is reached.
+        Updates the exhaustion state for the patrol.
         """
         # Calculate exhaustion threshold based on patrol time (in minutes)
-
-        data = self.exhaustion_data
+        data = self.squad_data
         speed = self.move_speed
         grade = np.random.normal(0, 6) 
         terrain_factor = terrain_library[self.current_terrain][0] # Terrain factor from the library
@@ -137,40 +137,46 @@ class Patrol:
             )
             energy_expended = P * 60
             soldier['joules_expended'] += energy_expended
-            average_power_output = energy_expended / (self.patrol_time * 60) if self.patrol_time > 0 else 0
+
+            # The 60x is to convert the output to Joules per hour
+            average_power_output = ( soldier['joules_expended'] * 60 ) / (self.patrol_time) if self.patrol_time > 0 else 0
+            
+            # Next we have to convert to Kcal to compare against the exhaustion level.
+            average_power_output = average_power_output / 4184
+
             exhaustion_threshold = self.get_exhaustion_threshold()
             soldier['exhaustion_level'] = average_power_output / exhaustion_threshold if exhaustion_threshold > 0 else 0
 
-        self.exhaustion = np.mean([s['exhaustion_level'] for s in data])
+        
+        self.squad_exhaustion = np.mean([s['exhaustion_level'] for s in data])
+        # TODO : Add logic to record exhaustion data if not full_log.
         if self.full_log:
-            self.exhaustion_data.append(self.exhaustion)
-        # Return True if patrol is exhausted
+            self.exhaustion_data.append(self.squad_exhaustion)
         return 
   
     def get_exhaustion_threshold(self):
         """
         Calculate the exhaustion threshold based on the patrol time.
         """
-        patrol_time = self.patrol_time
-        return max(0, (
-            -0.0841 * (patrol_time/60)**4 + 2.9025*(patrol_time/60)**3 -
-            41.059*(patrol_time/60)**2 + 195.14*(patrol_time/60) + 294.05
-        ))
+        patrol_time = self.patrol_time / 60 # Convert to hours
+        P_MAX = 715.0154 * (patrol_time) ** -0.3869002
+        return P_MAX 
 
     def is_exhausted(self):
         """
         Check if the patrol is exhausted based on the exhaustion level.
         """
-        return self.exhaustion >= self.get_exhaustion_threshold()
+        return self.squad_exhaustion >= self.get_exhaustion_threshold()
 
-    def step(self, dt, deviation):
-        # Update direction with deviation
+    def step(self, deviation):
         self.direction = (self.direction + np.random.uniform(-deviation, deviation)) % 360
-        # Calculate move speed and distance
-        move_speed = np.random.uniform(0.5, 1.4) / terrain_library[self.current_terrain][0]  # Adjust speed based on terrain factor
-        move_distance = move_speed * dt * 60
-        move_speed *= ( 1 - ( self.exhaustion / (2 * self.get_exhaustion_threshold()) ) )# Adjust speed based on exhaustion level
-        # Move and update position
+        # Calculate move speed and distance. Adjust speed based on terrain factor
+        move_speed = np.random.uniform(0.5, 1.4) / terrain_library[self.current_terrain][0]  
+        # Adjust speed based on exhaustion level
+        move_speed *= ( 1 - ( self.squad_exhaustion / (2 * self.get_exhaustion_threshold()) ) )
+        # Multiply by 60 to convert to meters per minute because the simulation runs in minutes.
+        # Speed has to remain in meters per second for the exhaustion calculations.
+        move_distance = move_speed * 60
         self.move(move_distance, deviation)
         return
 

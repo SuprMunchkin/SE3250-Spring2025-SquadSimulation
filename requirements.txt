@@ -11,3 +11,6 @@ flask
 matplotlib
 ipywidgets
 tqdm
+
+#Unit testing
+pytest
