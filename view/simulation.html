@@ -133,12 +133,12 @@
                 .then(response => response.json())
                 .then(data => {
                     // Display the results
-                    drawPath(data.blue.position_history, data.red.current_position);
+                    drawPath(data.blue.position_history, data.red_patrols);
                     document.getElementById('results').textContent = formatResults(data);
                 });
         }
 
-        function drawPath(bluePath, redPosition) {
+        function drawPath(bluePath, redPatrols) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Draw blue path
@@ -163,28 +163,27 @@
                 ctx.fill();
             }
 
-            /*           
-            // Draw red path
-            if (redPath && redPath.length > 0) {
-                ctx.strokeStyle = 'red';
-                ctx.beginPath();
-                redPath.forEach(([x, y], i) => {
+            // Draw all red patrols as squares
+            if (redPatrols && redPatrols.length > 0) {
+                redPatrols.forEach((patrol) => {
+                    const [x, y] = patrol.current_position;
                     let sx = x / 5000 * canvas.width;
                     let sy = (5000-y) / 5000 * canvas.height;
-                    if (i === 0) ctx.moveTo(sx, sy);
-                    else ctx.lineTo(sx, sy);
+                    ctx.save();
+                    ctx.strokeStyle = 'red';
+                    ctx.lineWidth = 2;
+                    if (patrol.removal_time === null) {
+                        // Solid square for active
+                        ctx.fillStyle = 'red';
+                        ctx.fillRect(sx - 6, sy - 6, 12, 12);
+                    } else {
+                        // Hollow square for defeated
+                        ctx.clearRect(sx - 6, sy - 6, 12, 12); // optional, to clear background
+                        ctx.strokeRect(sx - 6, sy - 6, 12, 12);
+                    }
+                    ctx.restore();
                 });
-                ctx.stroke(); 
-            */
-
-            // Draw red unit as a red circle at its last position
-            let [hx, hy] = redPosition;
-            let hsx = hx / 5000 * canvas.width;
-            let hsy = (5000-hy) / 5000 * canvas.height;
-            ctx.fillStyle = 'red';
-            ctx.beginPath();
-            ctx.arc(hsx, hsy, 5, 0, Math.PI * 2);
-            ctx.fill();
+            }
         }
 
         function stopSimulation() {

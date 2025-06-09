@@ -72,7 +72,23 @@ def make_json_safe(obj):
     if isinstance(obj, np.ndarray):
         return make_json_safe(obj.tolist())
     return obj
- 
+
+def spawn_red_patrol(params, sim_time):
+    """ Spawns a red patrol at a random position on the map with the given stock.
+    Args:
+        params (dict): Simulation parameters including red stock.
+    Returns:
+        dict: A dictionary representing the red patrol with its stock and position."""
+    return {
+        'stock': params['red_stock'],
+        'current_position': (np.random.uniform(0, map_size), np.random.uniform(0, map_size)),
+        'stock_history': [(params['red_stock'], 0)],
+        'spawn_time': sim_time,
+        'removal_time': None,
+        'shots': 0,
+        'kills': 0,
+    }
+
 def run_simulation(params, full_log=True):
     """ Simulates a patrol operation between blue and red forces on a terrain defined by the map_size parmeter. 
     Origin is at the bottom left corner, direction 0 is to the right and rotates counter-clockwise.
@@ -88,20 +104,13 @@ def run_simulation(params, full_log=True):
     sim_time = 0
     dt = 1
 
+    red_patrol = spawn_red_patrol(params, sim_time)
+    red_patrols = [red_patrol]
+
     blue_patrol = Patrol(params, full_log)
 
     blue_patrol.position_history.append((blue_patrol.current_position))
     blue_patrol.stock_history.append((blue_patrol.stock, 0))
-
-    red_patrol = {
-        'stock': params['red_stock'],
-        'current_position': (np.random.uniform(0, map_size), np.random.uniform(0, map_size)),
-        'stock_history': [(params['red_stock'], 0)],  # <-- fix here
-        'spawn_time': 0,
-        'removal_time': float('inf'),
-        'shots': 0,
-        'kills': 0,
-    }
 
     combat_log = []
 
@@ -119,6 +128,7 @@ def run_simulation(params, full_log=True):
             prob_attack = 1 / np.sqrt(distance_to_enemy)
         else:
             prob_attack = 1
+
         if distance_to_enemy <= 1000 and np.random.random() < prob_attack:
             attack_result = _attack(
                 blue_patrol, red_patrol, params['environment'],
@@ -133,6 +143,13 @@ def run_simulation(params, full_log=True):
             blue_patrol.stock_history.append((blue_patrol.stock, sim_time))
             red_patrol['stock_history'].append((red_patrol['stock'], sim_time))
 
+            if blue_patrol.stock <= 0:
+                blue_patrol.removal_time = sim_time
+                break # Blue patrol is defeated, end simulation
+            if red_patrol['stock'] <= 0:
+                red_patrol['removal_time'] = sim_time
+                red_patrol = spawn_red_patrol(params, sim_time) 
+                red_patrols.append(red_patrol) 
             if full_log:
                 # Log all details of this combat event
                 combat_log.append({
@@ -145,28 +162,27 @@ def run_simulation(params, full_log=True):
                     'red_position': list(red_patrol['current_position']),
                     'distance': distance_to_enemy
                 })
-
-            if blue_patrol.stock <= 0:
-                blue_patrol.removal_time = sim_time  
         else:
             # Exhaustion checks only happen if the patrol is not engaged in combat.
-            # This code smells bad: set functions should not return. Make an is_exhausted function instead.
             blue_patrol.set_exhaustion()
             if blue_patrol.is_exhausted():
                 blue_patrol.removal_time = sim_time
-                break
+                break # Blue patrol is exhausted, end simulation
         
     
     # Convert all tuples to lists for JSON serialization
     blue_patrol.position_history = [list(pos) for pos in blue_patrol.position_history]
     blue_patrol.stock_history = [list(stock) for stock in blue_patrol.stock_history]
-    red_patrol['stock_history'] = [list(stock) for stock in red_patrol['stock_history']]
- 
+    for patrol in red_patrols:
+        patrol['stock_history'] = [list(stock) for stock in patrol['stock_history']]
+        patrol['current_position'] = list(patrol['current_position'])
+
  
     result = {
         'blue': blue_patrol.to_dict(full_log=full_log),
         'red': red_patrol,
-        'combat_log': combat_log # will be empty if full_log is False.
+        'combat_log': combat_log, # will be empty if full_log is False.
+        'red_patrols': red_patrols
     }
 
     return make_json_safe(result)
