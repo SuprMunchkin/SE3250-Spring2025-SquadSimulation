@@ -1,6 +1,10 @@
 from flask import Flask, jsonify, request
 import os
+import numpy as np
 from models.squad_simulation import run_simulation
+import pprint
+
+pp = pprint.PrettyPrinter(indent=4)
 
 app = Flask(__name__)
 
@@ -32,6 +36,7 @@ def run_simulation_endpoint():
         "environment": environment
     }
     results = run_simulation(params, full_log=True)
+    #pp.pprint(results)
     return jsonify(results)
 
 @app.route("/monte_carlo")
@@ -57,12 +62,18 @@ def run_monte_carlo_endpoint():
     for _ in range(num_runs):
         sim_result = run_simulation(params, full_log=False)
         results.append(sim_result)
-    # Example: calculate average of a result field called 'score'
-    scores = [r.get('score', 0) for r in results]
-    avg_score = sum(scores) / len(scores) if scores else 0
+    squad_exhaustion = [r['blue']['exhaustion'] for r in results]
+    distance_traveled = [r['blue']['patrol_distance'] for r in results]  # or the correct field
+    blue_kills = [r['blue']['kills'] for r in results]
+    red_kills = [r['red']['kills'] for r in results]
+    
     return jsonify({
         "num_runs": num_runs,
-        "avg_score": avg_score,
+        "patrol_distance": distance_traveled,
+        "blue_kills": blue_kills,
+        "red_kills": red_kills,
+        "squad_exhaustion": squad_exhaustion,
+        "distance_traveled": distance_traveled,
         "all_results": results
     })
 
