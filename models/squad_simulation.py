@@ -31,11 +31,19 @@ def _get_defeat_probability(armor, threat, velocity):
 
 def _attack(blue_patrol, red_patrol, env, armor, distance):
     # Blue shots
-    blue_shots = np.random.randint(fire_rates["blue_min"], fire_rates["blue_max"] + 1) * blue_patrol.stock
+    blue_shots = np.random.randint(fire_rates["blue_min"], fire_rates["blue_max"] + 1) * blue_patrol.get_stock()
     prob_blue_hit = exp(-0.002 * distance)
     blue_hits = sum(np.random.random() < prob_blue_hit for _ in range(blue_shots))
-    red_kills = min(red_patrol['stock'], sum(np.random.normal(0.75, 0.05) > np.random.random() for _ in range(blue_hits)))
-
+    if env == 'Krulak’s Three Block War':
+        red_kills = min(red_patrol['stock'], blue_hits)
+    elif env == 'Pershing’s Ghost':
+        red_kills = min(red_patrol['stock'], sum(np.random.normal(0.75, 0.05) > np.random.random() for _ in range(blue_hits)))
+    elif env == 'Nightmare from Mattis Street':
+        red_kills = min(red_patrol['stock'], sum(np.random.normal(0.25, 0.05) > np.random.random() for _ in range(blue_hits)))
+    else:
+        # Unknown env? treat it as the easiest. Need to figure out a way to throw an exception here.
+        red_kills = min(red_patrol['stock'], blue_hits)
+        
     # red shots
     red_shots = np.random.randint(fire_rates["red_min"], fire_rates["red_max"] + 1) * red_patrol['stock']
     red_threat = np.random.choice(list(threat_probs[env].keys()), p=list(threat_probs[env].values()))
@@ -43,7 +51,7 @@ def _attack(blue_patrol, red_patrol, env, armor, distance):
     prob_red_hit = exp(-0.002 * distance)
     red_hits = sum(np.random.random() < prob_red_hit for _ in range(red_shots))
     red_defeats = sum(np.random.random() < _get_defeat_probability(armor, red_threat, red_velocity) for _ in range(red_hits))
-    blue_kills = min(blue_patrol.stock, red_defeats)
+    blue_kills = min(blue_patrol.get_stock(), red_defeats)
 
     # Return shots and kills for both sides
     return {
@@ -99,23 +107,22 @@ def run_simulation(params, full_log=True):
             False is less memory intensive and faster for multiple iterations (i.e. Monte Carlo simulations)
             Defaults to True. 
     Returns:
-        dict: A dictionary containing the simulation results including patrol positions, stock history, and total kills."""
+        dict: A dictionary containing the simulation results."""
 
     sim_time = 0
     dt = 1
 
-    red_patrol = spawn_red_patrol(params, sim_time)
-    red_patrols = [red_patrol]
+    red_patrols = [spawn_red_patrol(params, sim_time)]
 
     blue_patrol = Patrol(params, full_log)
 
     blue_patrol.position_history.append((blue_patrol.current_position))
-    blue_patrol.stock_history.append((blue_patrol.stock, 0))
+    blue_patrol.stock_history.append((blue_patrol.get_stock(), 0))
 
     combat_log = []
 
     # Simulate patrol movement and combat
-    while sim_time < stop_time and blue_patrol.stock > 0 and red_patrol['stock'] > 0:
+    while sim_time < stop_time and blue_patrol.get_stock() > 0 and red_patrols[0]['stock'] > 0:
         sim_time += dt
         blue_patrol.patrol_time = sim_time - blue_patrol.spawn_time
 
@@ -123,7 +130,7 @@ def run_simulation(params, full_log=True):
         blue_patrol.step(deviation)
 
         #Combat section
-        distance_to_enemy = dist(blue_patrol.current_position, red_patrol['current_position'])
+        distance_to_enemy = dist(blue_patrol.current_position, red_patrols[0]['current_position'])
         if distance_to_enemy != 0:
             prob_attack = 1 / np.sqrt(distance_to_enemy)
         else:
@@ -131,25 +138,24 @@ def run_simulation(params, full_log=True):
 
         if distance_to_enemy <= 1000 and np.random.random() < prob_attack:
             attack_result = _attack(
-                blue_patrol, red_patrol, params['environment'],
+                blue_patrol, red_patrols[0], params['environment'],
                 params['armor_type'], distance_to_enemy
             )
-            blue_patrol.stock -= attack_result['blue_kills']
-            red_patrol['stock'] -= attack_result['red_kills']
+            blue_patrol.set_stock(blue_patrol.get_stock()- attack_result['blue_kills'], sim_time)
+            red_patrols[0]['stock'] -= attack_result['red_kills']
             blue_patrol.kills += attack_result['blue_kills']
-            red_patrol['kills'] += attack_result['red_kills']
+            red_patrols[0]['kills'] += attack_result['red_kills']
             blue_patrol.shots = attack_result['blue_shots']
-            red_patrol['shots'] = attack_result['red_shots']
-            blue_patrol.stock_history.append((blue_patrol.stock, sim_time))
-            red_patrol['stock_history'].append((red_patrol['stock'], sim_time))
+            red_patrols[0]['shots'] = attack_result['red_shots']
+            # set_stock logs the stock history, so we don't need to do it here.
+            red_patrols[0]['stock_history'].append((red_patrols[0]['stock'], sim_time))
 
-            if blue_patrol.stock <= 0:
+            if blue_patrol.get_stock() <= 0:
                 blue_patrol.removal_time = sim_time
                 break # Blue patrol is defeated, end simulation
-            if red_patrol['stock'] <= 0:
-                red_patrol['removal_time'] = sim_time
-                red_patrol = spawn_red_patrol(params, sim_time) 
-                red_patrols.append(red_patrol) 
+            if red_patrols[0]['stock'] <= 0:
+                red_patrols[0]['removal_time'] = sim_time
+                red_patrols.insert(0, spawn_red_patrol(params, sim_time)) 
             if full_log:
                 # Log all details of this combat event
                 combat_log.append({
@@ -159,7 +165,7 @@ def run_simulation(params, full_log=True):
                     'blue_kills': attack_result['blue_kills'],
                     'red_kills': attack_result['red_kills'],
                     'blue_position': list(blue_patrol.current_position),
-                    'red_position': list(red_patrol['current_position']),
+                    'red_position': list(red_patrols[0]['current_position']),
                     'distance': distance_to_enemy
                 })
         else:
@@ -177,12 +183,11 @@ def run_simulation(params, full_log=True):
         patrol['stock_history'] = [list(stock) for stock in patrol['stock_history']]
         patrol['current_position'] = list(patrol['current_position'])
 
- 
     result = {
         'blue': blue_patrol.to_dict(full_log=full_log),
-        'red': red_patrol,
-        'combat_log': combat_log, # will be empty if full_log is False.
-        'red_patrols': red_patrols
+        'red': red_patrols[0],
+        'red_patrols': red_patrols,
+        'combat_log': combat_log # will be empty if full_log is False.
     }
 
     return make_json_safe(result)

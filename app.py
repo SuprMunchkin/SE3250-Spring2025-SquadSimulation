@@ -2,6 +2,9 @@ from flask import Flask, jsonify, request
 import os
 import numpy as np
 from models.squad_simulation import run_simulation
+import pprint
+
+pp = pprint.PrettyPrinter(indent=4)
 
 app = Flask(__name__)
 
@@ -33,6 +36,7 @@ def run_simulation_endpoint():
         "environment": environment
     }
     results = run_simulation(params, full_log=True)
+    #pp.pprint(results)
     return jsonify(results)
 
 @app.route("/monte_carlo")

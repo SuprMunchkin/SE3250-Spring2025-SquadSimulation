@@ -14,8 +14,6 @@ terrain_library = config["terrain_library"]
 class Patrol:
     def __init__(self, params, full_log=True):
         self.full_log = full_log
-        self.stock = params['blue_stock']
-        self.stock_history = [(self.stock, 0)]
         self.current_position = (np.random.uniform(0, map_size), np.random.uniform(0, map_size))
         self.position_history = [self.current_position]
         self.direction = np.random.uniform(0, 360)
@@ -35,15 +33,18 @@ class Patrol:
             raise ValueError(f"Armor type '{armor}' not found in armor profiles.")
         self.squad_exhaustion = 0
         self.squad_data = []
-        for _ in range(self.stock):
+        for _ in range(params['blue_stock']):
             soldier_mass = np.random.normal(76.6571, 11.06765)
             soldier_load = 20.6497926 + armor_profiles[armor]['Mass'] # Base Combat Load (kg) (Fish and Scharre, 2018, p. 13)
             self.squad_data.append({
                 'soldier': soldier_mass,
                 'load': soldier_load,
                 'joules_expended': 0, 
-                'exhaustion_level': 0
+                'exhaustion_level': 0,
+                'removal_time': None
             })
+        self.casualties = []
+        self.stock_history = [(self.get_stock(), 0)]
         self.exhaustion_data = []
 
     def move(self, move_distance, deviation):
@@ -87,14 +88,41 @@ class Patrol:
     def update_patrol_time(self, sim_time):
         self.patrol_time = sim_time - self.spawn_time
 
-    def log_stock(self, sim_time):
-        self.stock_history.append((self.stock, sim_time))
+    def get_stock(self):
+        return len(self.squad_data)
+    
+    def set_stock(self, setpoint, sim_time):
+        """
+        Updates the stock of the patrol to the setpoint. Records casualties at given sim_time.
+        Also logs the stock history and removes exhausted soldiers.
+        Args:
+            setpoint (int): The desired stock level.
+            sim_time (int): The current simulation time.
+        """
+        # Check for exhausted soldiers and mark them for removal
+        for soldier in self.squad_data:
+            if soldier['removal_time'] is None and soldier['exhaustion_level'] >= 1:
+                soldier['removal_time'] = sim_time
+            if soldier['removal_time'] is not None:
+                self.squad_data.remove(soldier)
+                self.casualties.append(soldier)
+
+        # Remove casualties
+        if len(self.squad_data) > setpoint:
+            casualties = self.squad_data[setpoint:]
+            for soldier in casualties:
+                soldier['removal_time'] = sim_time
+            self.squad_data = self.squad_data[:setpoint]
+            self.casualties.extend(casualties)
+
+        self.stock_history.append((self.get_stock(), sim_time))
+        return
 
     def to_dict(self, full_log=True):
         pos_hist = [list(pos) for pos in self.position_history] if full_log else [list(self.position_history[0]), list(self.position_history[-1])]
         stock_hist = [list(stock) for stock in self.stock_history]
         return {
-            'stock': self.stock,
+            'stock': self.get_stock(),
             'current_position': list(self.current_position),
             'direction': self.direction,
             'exhaustion_data': self.squad_data,
