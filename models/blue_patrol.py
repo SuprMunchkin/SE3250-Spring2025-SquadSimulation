@@ -117,7 +117,7 @@ class Patrol:
         # Calculate exhaustion threshold based on patrol time (in minutes)
         data = self.squad_data
         speed = self.move_speed
-        grade = np.random.normal(0, 6) 
+        grade = np.random.normal(0, 3) 
         terrain_factor = terrain_library[self.current_terrain][0] # Terrain factor from the library
         downhill_adjustment = 1 if grade < 0 else 0 
 
