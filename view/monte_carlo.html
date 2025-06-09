@@ -115,6 +115,7 @@
                 const rangeEnd = (min + (i + 1) * binSize).toFixed(2);
                 labels.push(`${rangeStart} - ${rangeEnd}`);
             }
+
             chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
