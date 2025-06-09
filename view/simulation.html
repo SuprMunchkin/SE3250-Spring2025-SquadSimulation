@@ -197,7 +197,9 @@
 
         function formatResults(data) {
             let output = `👥 Blue Remaining: ${data.blue.stock}\n`;
-            output += `🔴 red Remaining: ${data.red.stock}\n`;
+            output += `🔴 Red Remaining: ${data.red.stock}\n`;
+            output += ` Blue Distance Traveled: (${data.blue.patrol_distance})\n`;
+            output += ` Blue Time on Patrol: (${data.blue.patrol_time})\n`;
             return output;
         }
     </script>
