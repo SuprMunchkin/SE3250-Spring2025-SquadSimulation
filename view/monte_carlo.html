@@ -24,7 +24,7 @@
             display: block;
             margin: 0 auto;
         }
-        #histogram, #exhaustion-histogram, #distance-histogram {
+        #blue-kills-histogram, #red-kills-histogram, #exhaustion-histogram, #distance-histogram {
             margin: 20px auto;
             display: block;
         }
@@ -67,22 +67,29 @@
         </div>
     </form>
     <div id="results"></div>
-    <canvas id="histogram" width="600" height="300"></canvas>
+    <canvas id="blue-kills-histogram" width="600" height="300"></canvas>
+    <canvas id="red-kills-histogram" width="600" height="300"></canvas>
     <canvas id="exhaustion-histogram" width="600" height="300"></canvas>
     <canvas id="distance-histogram" width="600" height="300"></canvas>
     <script>
-        let chart = null;
+        let blueKillsChart = null;
+        let redKillsChart = null;
         let exhaustionChart = null;
         let distanceChart = null;
+
         document.getElementById('mc-form').onsubmit = async function(e) {
             e.preventDefault();
-            // Clear previous output immediately
             document.getElementById('results').innerHTML = '';
-            const ctx = document.getElementById('histogram').getContext('2d');
+
+            const blueKillsCtx = document.getElementById('blue-kills-histogram').getContext('2d');
+            const redKillsCtx = document.getElementById('red-kills-histogram').getContext('2d');
             const exhaustionCtx = document.getElementById('exhaustion-histogram').getContext('2d');
             const distanceCtx = document.getElementById('distance-histogram').getContext('2d');
-            if (chart) { chart.destroy(); chart = null; }
-            ctx.clearRect(0, 0, 600, 300);
+
+            if (blueKillsChart) { blueKillsChart.destroy(); blueKillsChart = null; }
+            blueKillsCtx.clearRect(0, 0, 600, 300);
+            if (redKillsChart) { redKillsChart.destroy(); redKillsChart = null; }
+            redKillsCtx.clearRect(0, 0, 600, 300);
             if (exhaustionChart) { exhaustionChart.destroy(); exhaustionChart = null; }
             exhaustionCtx.clearRect(0, 0, 600, 300);
             if (distanceChart) { distanceChart.destroy(); distanceChart = null; }
@@ -91,21 +98,38 @@
             const params = new URLSearchParams(new FormData(this));
             const res = await fetch('/run_monte_carlo?' + params);
             const data = await res.json();
+
+            // Use the direct arrays from the response:
+            const patrolDistances = data.patrol_distance ?? [];
+            const blueKills = data.blue_kills ?? [];
+            const redKills = data.red_kills ?? [];
+
+            // Calculate stats for patrol distance
+            function stats(arr) {
+                const sum = arr.reduce((a, b) => a + b, 0);
+                const mean = arr.length ? (sum / arr.length) : 0;
+                const min = arr.length ? Math.min(...arr) : 0;
+                const max = arr.length ? Math.max(...arr) : 0;
+                return {mean, min, max};
+            }
+            const distStats = stats(patrolDistances);
+
+            // Display stats
             document.getElementById('results').innerHTML = `
                 <h2>Results</h2>
                 <p>Number of Runs: ${data.num_runs}</p>
-                <p>Average Score: ${data.avg_score}</p>
+                <h3>Patrol Distance (meters)</h3>
+                <p>Mean: ${distStats.mean.toFixed(2)}, Min: ${distStats.min.toFixed(2)}, Max: ${distStats.max.toFixed(2)}</p>
             `;
 
-            // Score histogram (existing)
-            const scores = data.all_results.map(r => r.score || 0);
+            // Blue Kills Histogram
             const binCount = 10;
-            const min = Math.min(...scores);
-            const max = Math.max(...scores);
+            const min = Math.min(...blueKills);
+            const max = Math.max(...blueKills);
             const binSize = (max - min) / binCount || 1;
             const bins = Array(binCount).fill(0);
-            scores.forEach(score => {
-                let idx = Math.floor((score - min) / binSize);
+            blueKills.forEach(kill => {
+                let idx = Math.floor((kill - min) / binSize);
                 if (idx >= binCount) idx = binCount - 1;
                 bins[idx]++;
             });
@@ -116,26 +140,61 @@
                 labels.push(`${rangeStart} - ${rangeEnd}`);
             }
 
-            chart = new Chart(ctx, {
+            blueKillsChart = new Chart(blueKillsCtx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Score Distribution',
+                        label: 'Blue Kills Distribution',
                         data: bins,
                         backgroundColor: 'rgba(54, 162, 235, 0.6)'
                     }]
                 },
                 options: {
                     scales: {
-                        x: { title: { display: true, text: 'Score Range' } },
+                        x: { title: { display: true, text: 'Blue Kills Range' } },
                         y: { title: { display: true, text: 'Frequency' }, beginAtZero: true }
                     }
                 }
             });
 
-            // Exhaustion histogram (existing)
-            const exhaustionLevels = data.all_results.map(r => r.squad_exhaustion ?? 0);
+            // Red Kills Histogram
+            const redMin = Math.min(...redKills);
+            const redMax = Math.max(...redKills);
+            const redBinSize = (redMax - redMin) / binCount || 1;
+            const redBins = Array(binCount).fill(0);
+            redKills.forEach(kill => {
+                let idx = Math.floor((kill - redMin) / redBinSize);
+                if (idx >= binCount) idx = binCount - 1;
+                redBins[idx]++;
+            });
+            const redLabels = [];
+            for (let i = 0; i < binCount; i++) {
+                const rangeStart = (redMin + i * redBinSize).toFixed(2);
+                const rangeEnd = (redMin + (i + 1) * redBinSize).toFixed(2);
+                redLabels.push(`${rangeStart} - ${rangeEnd}`);
+            }  
+
+            redKillsChart = new Chart(redKillsCtx, {
+                type: 'bar',
+                data: {
+                    labels: redLabels,
+                    datasets: [{
+                        label: 'Red Kills Distribution',
+                        data: redBins,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)' // <-- was orange, now pink/red
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Red Kills Range' } },
+                        y: { title: { display: true, text: 'Frequency' }, beginAtZero: true }
+                    }
+                }
+            });
+
+            // Exhaustion histogram
+            const exhaustionLevels = data.squad_exhaustion ?? [];
             const exMin = Math.min(...exhaustionLevels);
             const exMax = Math.max(...exhaustionLevels);
             const exBinSize = (exMax - exMin) / binCount || 1;
@@ -158,7 +217,7 @@
                     datasets: [{
                         label: 'Squad Exhaustion Level Distribution',
                         data: exBins,
-                        backgroundColor: 'rgba(255, 99, 132, 0.6)'
+                        backgroundColor: 'rgba(235, 162, 54, 0.6)' // <-- was pink/red, now orange
                     }]
                 },
                 options: {
@@ -169,8 +228,8 @@
                 }
             });
 
-            // Distance traveled histogram (NEW)
-            const distances = data.all_results.map(r => r.distance_traveled ?? 0);
+            // Distance traveled histogram
+            const distances = data.distance_traveled ?? [];
             const dMin = Math.min(...distances);
             const dMax = Math.max(...distances);
             const dBinSize = (dMax - dMin) / binCount || 1;
@@ -207,7 +266,7 @@
 
         document.getElementById('clear-btn').onclick = function() {
             document.getElementById('results').innerHTML = '';
-            const ctx = document.getElementById('histogram').getContext('2d');
+            const ctx = document.getElementById('blue-kills-histogram').getContext('2d');
             if (chart) { chart.destroy(); chart = null; }
             ctx.clearRect(0, 0, 600, 300);
             const exhaustionCtx = document.getElementById('exhaustion-histogram').getContext('2d');

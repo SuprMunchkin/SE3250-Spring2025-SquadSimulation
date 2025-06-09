@@ -147,9 +147,7 @@ class Patrol:
             exhaustion_threshold = self.get_exhaustion_threshold()
             soldier['exhaustion_level'] = average_power_output / exhaustion_threshold if exhaustion_threshold > 0 else 0
 
-        
         self.squad_exhaustion = np.mean([s['exhaustion_level'] for s in data])
-        # TODO : Add logic to record exhaustion data if not full_log.
         if self.full_log:
             self.exhaustion_data.append(self.squad_exhaustion)
         return 
@@ -158,9 +156,9 @@ class Patrol:
         """
         Calculate the exhaustion threshold based on the patrol time.
         """
-        patrol_time = self.patrol_time / 60 # Convert to hours
-        P_MAX = 715.0154 * (patrol_time) ** -0.3869002
-        return P_MAX 
+        patrol_time = ( self.patrol_time / 60 ) # Convert to hours
+        power_max = 715.0154 * (patrol_time) ** -0.3869002
+        return power_max 
 
     def is_exhausted(self):
         """
