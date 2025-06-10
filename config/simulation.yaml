@@ -1,5 +1,5 @@
 # Default values for the parameters of the simulation.
-map_size: 1000 # Given in meters
+map_size: 2000 # Given in meters
 stop_time: 480 # Given in minutes. 480 = 8 hours (default value) 
 
 fire_rates: 
@@ -13,11 +13,11 @@ terrain_library:
   # Type: (movement cost, probability)
   # Probability should sum to 1.0 across all terrain types.
   # Movement cost is calibrated to the Pandolf-Santee model and should not be changed.
-  light_brush: [1.2, 0.5]
+  light_brush: [1.2, 0.4]
   heavy_brush: [1.5, 0.20]
-  packed_dirt: [1.1, 0.15]
+  packed_dirt: [1.1, 0.20]
   loose_sand: [2.1, 0.10]
-  paved: [1.0, 0.05]
+  paved: [1.0, 0.10]
 
 threat_library:
   # Format: [a, b, c] 

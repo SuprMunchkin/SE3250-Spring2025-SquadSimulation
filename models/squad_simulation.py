@@ -35,14 +35,14 @@ def _attack(blue_patrol, red_patrol, env, armor, distance):
     prob_blue_hit = exp(-0.002 * distance)
     blue_hits = sum(np.random.random() < prob_blue_hit for _ in range(blue_shots))
     if env == 'Krulak’s Three Block War':
-        red_kills = min(red_patrol['stock'], blue_hits)
+        red_casualties = min(red_patrol['stock'], blue_hits)
     elif env == 'Pershing’s Ghost':
-        red_kills = min(red_patrol['stock'], sum(np.random.normal(0.75, 0.05) > np.random.random() for _ in range(blue_hits)))
+        red_casualties = min(red_patrol['stock'], sum(np.random.normal(0.75, 0.05) > np.random.random() for _ in range(blue_hits)))
     elif env == 'Nightmare from Mattis Street':
-        red_kills = min(red_patrol['stock'], sum(np.random.normal(0.25, 0.05) > np.random.random() for _ in range(blue_hits)))
+        red_casualties = min(red_patrol['stock'], sum(np.random.normal(0.25, 0.05) > np.random.random() for _ in range(blue_hits)))
     else:
         # Unknown env? treat it as the easiest. Need to figure out a way to throw an exception here.
-        red_kills = min(red_patrol['stock'], blue_hits)
+        red_casualties = min(red_patrol['stock'], blue_hits)
         
     # red shots
     red_shots = np.random.randint(fire_rates["red_min"], fire_rates["red_max"] + 1) * red_patrol['stock']
@@ -51,12 +51,12 @@ def _attack(blue_patrol, red_patrol, env, armor, distance):
     prob_red_hit = exp(-0.002 * distance)
     red_hits = sum(np.random.random() < prob_red_hit for _ in range(red_shots))
     red_defeats = sum(np.random.random() < _get_defeat_probability(armor, red_threat, red_velocity) for _ in range(red_hits))
-    blue_kills = min(blue_patrol.get_stock(), red_defeats)
+    blue_casualties = min(blue_patrol.get_stock(), red_defeats)
 
-    # Return shots and kills for both sides
+    # Return shots and deaths for both sides
     return {
-        'blue_kills': blue_kills,
-        'red_kills': red_kills,
+        'blue_casualites': blue_casualties,
+        'red_casualites': red_casualties,
         'blue_shots': blue_shots,
         'red_shots': red_shots
     }
@@ -94,7 +94,7 @@ def spawn_red_patrol(params, sim_time):
         'spawn_time': sim_time,
         'removal_time': None,
         'shots': 0,
-        'kills': 0,
+        'warfighters_killed': 0,
     }
 
 def run_simulation(params, full_log=True):
@@ -117,7 +117,7 @@ def run_simulation(params, full_log=True):
     blue_patrol = Patrol(params, full_log)
 
     blue_patrol.position_history.append((blue_patrol.current_position))
-    blue_patrol.stock_history.append((blue_patrol.get_stock(), 0))
+    blue_patrol.stock_history.append([blue_patrol.get_stock(), 0])
 
     combat_log = []
 
@@ -141,10 +141,10 @@ def run_simulation(params, full_log=True):
                 blue_patrol, red_patrols[0], params['environment'],
                 params['armor_type'], distance_to_enemy
             )
-            blue_patrol.set_stock(blue_patrol.get_stock()- attack_result['blue_kills'], sim_time)
-            red_patrols[0]['stock'] -= attack_result['red_kills']
-            blue_patrol.kills += attack_result['blue_kills']
-            red_patrols[0]['kills'] += attack_result['red_kills']
+            blue_patrol.take_casualties(attack_result['blue_casualites'], sim_time)
+            red_patrols[0]['stock'] -= attack_result['red_casualites']
+            blue_patrol.hostiles_killed += attack_result['red_casualites']
+            red_patrols[0]['warfighters_killed'] += attack_result['blue_casualites']
             blue_patrol.shots = attack_result['blue_shots']
             red_patrols[0]['shots'] = attack_result['red_shots']
             # set_stock logs the stock history, so we don't need to do it here.
@@ -162,8 +162,8 @@ def run_simulation(params, full_log=True):
                     'combat_time': sim_time,
                     'blue_shots': attack_result['blue_shots'],
                     'red_shots': attack_result['red_shots'],
-                    'blue_kills': attack_result['blue_kills'],
-                    'red_kills': attack_result['red_kills'],
+                    'blue_casualites': attack_result['blue_casualites'],
+                    'red_casualites': attack_result['red_casualites'],
                     'blue_position': list(blue_patrol.current_position),
                     'red_position': list(red_patrols[0]['current_position']),
                     'distance': distance_to_enemy

@@ -12,13 +12,13 @@ def default_params():
     }
 
 def test_run_simulation_returns_dict(default_params):
-    result = run_simulation(default_params, full_log=True)
-    assert isinstance(result, dict)
+     result = run_simulation(default_params, full_log=True)
+     assert isinstance(result, dict)
 
 def test_run_simulation_has_expected_keys(default_params):
     result = run_simulation(default_params, full_log=True)
     # Adjust these keys to match your actual simulation output
-    expected_keys = ["score", "squad_exhaustion", "distance_traveled"]
+    expected_keys = ["blue", "red", "red_patrols, combat_log"]
     for key in expected_keys:
         assert key in result
 
