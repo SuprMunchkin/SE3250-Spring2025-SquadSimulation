@@ -1,5 +1,5 @@
 import numpy as np
-from math import cos, sin, radians, dist
+from math import dist
 import os
 import yaml
 
@@ -14,7 +14,7 @@ terrain_library = config["terrain_library"]
 class Patrol:
     def __init__(self, params, full_log=True):
         self.full_log = full_log
-        self.current_position = (np.random.uniform(0, map_size), np.random.uniform(0, map_size))
+        self.current_position = [np.random.uniform(0, map_size), np.random.uniform(0, map_size)]
         self.position_history = [self.current_position]
         self.direction = np.random.uniform(0, 360)
         self.move_speed = 0 # m/dt
@@ -23,7 +23,7 @@ class Patrol:
         self.patrol_time = 0
         self.patrol_distance = 0
         self.shots = 0
-        self.kills = 0
+        self.hostiles_killed = 0
         self.terrain_change_interval = np.random.randint(1, 11)
         self.terrain_change_counter = 0
         self.current_terrain = np.random.choice(list(terrain_library.keys()))
@@ -32,7 +32,7 @@ class Patrol:
         if armor not in armor_profiles:
             raise ValueError(f"Armor type '{armor}' not found in armor profiles.")
         self.squad_exhaustion = 0
-        self.squad_data = []
+        self.squad_data = []  # Stores data for active soldiers
         for _ in range(params['blue_stock']):
             soldier_mass = np.random.normal(76.6571, 11.06765)
             soldier_load = 20.6497926 + armor_profiles[armor]['Mass'] # Base Combat Load (kg) (Fish and Scharre, 2018, p. 13)
@@ -41,10 +41,12 @@ class Patrol:
                 'load': soldier_load,
                 'joules_expended': 0, 
                 'exhaustion_level': 0,
-                'removal_time': None
+                'removal_time': None,
+                'exhausted': False,
+                'Killed': False
             })
-        self.casualties = []
-        self.stock_history = [(self.get_stock(), 0)]
+        self.casualties = []    #stores the data for dead and exhausted soldiers
+        self.stock_history = [[self.get_stock(), 0]]
         self.exhaustion_data = []
 
     def move(self, move_distance, deviation):
@@ -54,7 +56,7 @@ class Patrol:
         y = self.current_position[1] + move_distance * np.sin(np.radians(self.direction))
         x = np.clip(x, 0, map_size)
         y = np.clip(y, 0, map_size)
-        new_position = (x, y)
+        new_position = [x, y]
         traveled = dist(self.current_position, new_position)
         # Edge bounce logic
         bounced = False
@@ -76,7 +78,7 @@ class Patrol:
             y = self.current_position[1] + move_distance * np.sin(np.radians(self.direction))
             x = np.clip(x, 0, map_size)
             y = np.clip(y, 0, map_size)
-            new_position = (x, y)
+            new_position = [x, y]
             traveled += dist(self.current_position, new_position)
         self.patrol_distance += traveled
         self.move_speed = traveled 
@@ -89,33 +91,16 @@ class Patrol:
         self.patrol_time = sim_time - self.spawn_time
 
     def get_stock(self):
-        return len(self.squad_data)
+        return int(len(self.squad_data))
     
-    def set_stock(self, setpoint, sim_time):
-        """
-        Updates the stock of the patrol to the setpoint. Records casualties at given sim_time.
-        Also logs the stock history and removes exhausted soldiers.
-        Args:
-            setpoint (int): The desired stock level.
-            sim_time (int): The current simulation time.
-        """
-        # Check for exhausted soldiers and mark them for removal
-        for soldier in self.squad_data:
-            if soldier['removal_time'] is None and soldier['exhaustion_level'] >= 1:
-                soldier['removal_time'] = sim_time
-            if soldier['removal_time'] is not None:
-                self.squad_data.remove(soldier)
-                self.casualties.append(soldier)
-
-        # Remove casualties
-        if len(self.squad_data) > setpoint:
-            casualties = self.squad_data[setpoint:]
-            for soldier in casualties:
-                soldier['removal_time'] = sim_time
-            self.squad_data = self.squad_data[:setpoint]
-            self.casualties.extend(casualties)
-
-        self.stock_history.append((self.get_stock(), sim_time))
+    def take_casualties(self, casualties, sim_time):
+        list_survivors = self.squad_data[casualties:]
+        list_casulties = self.squad_data[:casualties]
+        for soldier in list_casulties:
+            soldier['removal_time'] = sim_time
+        self.squad_data = list_survivors
+        self.casualties.extend(list_casulties)
+        self.stock_history.append([self.get_stock(), sim_time])
         return
 
     def to_dict(self, full_log=True):
@@ -125,7 +110,6 @@ class Patrol:
             'stock': self.get_stock(),
             'current_position': list(self.current_position),
             'direction': self.direction,
-            'exhaustion_data': self.squad_data,
             'spawn_time': self.spawn_time,
             'removal_time': self.removal_time,
             'position_history': pos_hist,
@@ -134,7 +118,7 @@ class Patrol:
             'patrol_time': self.patrol_time,
             'patrol_distance': self.patrol_distance,
             'shots': self.shots,
-            'kills': self.kills,
+            'hostiles_killed': self.hostiles_killed,
             'exhaustion': self.squad_exhaustion
         }
 
