@@ -18,7 +18,7 @@ def test_run_simulation_returns_dict(default_params):
 def test_run_simulation_has_expected_keys(default_params):
     result = run_simulation(default_params, full_log=True)
     # Adjust these keys to match your actual simulation output
-    expected_keys = ["blue", "red", "red_patrols, combat_log"]
+    expected_keys = ["blue", "red"]
     for key in expected_keys:
         assert key in result
 

@@ -1,15 +1,25 @@
 import numpy as np
-import pandas as pd
-from math import cos, sin, radians, exp, dist
-import yaml
+from math import exp, dist
 import os
-import sys
-from .blue_patrol import Patrol
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 
+import yaml
 yaml_path = os.path.join(os.path.dirname(__file__), "../config/simulation.yaml")
 with open(yaml_path, "r") as f:
     config = yaml.safe_load(f)
- 
+
+import logging
+
+# Configure logging to write to a file
+logging.basicConfig(
+    filename='simulation.log',        # Log file name
+    level=logging.INFO,               # Log level (INFO, DEBUG, etc.)
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
+
+from .blue_patrol import Patrol
+
 threat_library = config["threat_library"]
 armor_profiles = config["armor_profiles"]
 threat_probs = config["threat_probs"]
@@ -30,9 +40,11 @@ def _get_defeat_probability(armor, threat, velocity):
     return np.exp(exponent) / (1 + np.exp(exponent))
 
 def _attack(blue_patrol, red_patrol, env, armor, distance):
+
+    logging.info("Attack activated")
     # Blue shots
     blue_shots = np.random.randint(fire_rates["blue_min"], fire_rates["blue_max"] + 1) * blue_patrol.get_stock()
-    prob_blue_hit = exp(-0.002 * distance)
+    prob_blue_hit = exp(-0.005 * distance)
     blue_hits = sum(np.random.random() < prob_blue_hit for _ in range(blue_shots))
     if env == 'Krulak’s Three Block War':
         red_casualties = min(red_patrol['stock'], blue_hits)
@@ -48,18 +60,20 @@ def _attack(blue_patrol, red_patrol, env, armor, distance):
     red_shots = np.random.randint(fire_rates["red_min"], fire_rates["red_max"] + 1) * red_patrol['stock']
     red_threat = np.random.choice(list(threat_probs[env].keys()), p=list(threat_probs[env].values()))
     red_velocity = _projectile_velocity(red_threat, distance)
-    prob_red_hit = exp(-0.002 * distance)
+    prob_red_hit = exp(-0.005 * distance)
     red_hits = sum(np.random.random() < prob_red_hit for _ in range(red_shots))
     red_defeats = sum(np.random.random() < _get_defeat_probability(armor, red_threat, red_velocity) for _ in range(red_hits))
-    blue_casualties = min(blue_patrol.get_stock(), red_defeats)
+    blue_casualties = int(min(blue_patrol.get_stock(), red_defeats))
 
     # Return shots and deaths for both sides
-    return {
+    results = {
         'blue_casualites': blue_casualties,
         'red_casualites': red_casualties,
         'blue_shots': blue_shots,
         'red_shots': red_shots
     }
+    logging.info(f"Battle Results: {results}")
+    return results
 
 def make_json_safe(obj):
     if isinstance(obj, np.integer):
@@ -108,6 +122,8 @@ def run_simulation(params, full_log=True):
             Defaults to True. 
     Returns:
         dict: A dictionary containing the simulation results."""
+
+    logging.info("Start of Simulation")
 
     sim_time = 0
     dt = 1
@@ -168,6 +184,8 @@ def run_simulation(params, full_log=True):
                     'red_position': list(red_patrols[0]['current_position']),
                     'distance': distance_to_enemy
                 })
+            logging.info(f"Blue Stock: {blue_patrol.get_stock()}")
+            logging.info(f"Red Stock: {red_patrols[0]['stock']}")
         else:
             # Exhaustion checks only happen if the patrol is not engaged in combat.
             blue_patrol.set_exhaustion()
@@ -189,6 +207,6 @@ def run_simulation(params, full_log=True):
         'red_patrols': red_patrols,
         'combat_log': combat_log # will be empty if full_log is False.
     }
-
+    logging.info(pp.pformat(result))
     return make_json_safe(result)
 

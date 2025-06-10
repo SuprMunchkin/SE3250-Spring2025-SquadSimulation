@@ -1,5 +1,5 @@
 import numpy as np
-from math import cos, sin, radians, dist
+from math import dist
 import os
 import yaml
 
@@ -91,7 +91,7 @@ class Patrol:
         self.patrol_time = sim_time - self.spawn_time
 
     def get_stock(self):
-        return len(self.squad_data)
+        return int(len(self.squad_data))
     
     def take_casualties(self, casualties, sim_time):
         list_survivors = self.squad_data[casualties:]

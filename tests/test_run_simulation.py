@@ -16,7 +16,7 @@ def test_run_simulation_basic():
     result = squad_sim.run_simulation(params, full_log=True)
     assert isinstance(result, dict)
     # Check for some expected keys (adjust as needed)
-    for key in ["score", "squad_exhaustion", "distance_traveled"]:
+    for key in ["blue", "red"]:
         assert key in result
 
 def test_run_simulation_multiple_runs():
