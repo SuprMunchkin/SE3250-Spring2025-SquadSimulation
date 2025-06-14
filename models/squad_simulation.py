@@ -1,17 +1,17 @@
 import numpy as np
 from math import exp, dist
 import os
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
 
+# Open config file
 import yaml
 yaml_path = os.path.join(os.path.dirname(__file__), "../config/simulation.yaml")
 with open(yaml_path, "r") as f:
     config = yaml.safe_load(f)
 
+# Configure logging
 import logging
-
-# Configure logging to write to a file
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 logging.basicConfig(
     filename='simulation.log',        # Log file name
     level=logging.INFO,               # Log level (INFO, DEBUG, etc.)
@@ -47,11 +47,11 @@ def _attack(blue_patrol, red_patrol, env, armor, distance):
     prob_blue_hit = exp(-0.005 * distance)
     blue_hits = sum(np.random.random() < prob_blue_hit for _ in range(blue_shots))
     if env == 'Krulak’s Three Block War':
-        red_casualties = min(red_patrol['stock'], blue_hits)
+        red_casualties = int(min(red_patrol['stock'], blue_hits))
     elif env == 'Pershing’s Ghost':
-        red_casualties = min(red_patrol['stock'], sum(np.random.normal(0.75, 0.05) > np.random.random() for _ in range(blue_hits)))
+        red_casualties = int(min(red_patrol['stock'], sum(np.random.normal(0.75, 0.05) > np.random.random() for _ in range(blue_hits))))
     elif env == 'Nightmare from Mattis Street':
-        red_casualties = min(red_patrol['stock'], sum(np.random.normal(0.25, 0.05) > np.random.random() for _ in range(blue_hits)))
+        red_casualties = int(min(red_patrol['stock'], sum(np.random.normal(0.25, 0.05) > np.random.random() for _ in range(blue_hits))))
     else:
         # Unknown env? treat it as the easiest. Need to figure out a way to throw an exception here.
         red_casualties = min(red_patrol['stock'], blue_hits)
@@ -131,9 +131,6 @@ def run_simulation(params, full_log=True):
     red_patrols = [spawn_red_patrol(params, sim_time)]
 
     blue_patrol = Patrol(params, full_log)
-
-    blue_patrol.position_history.append((blue_patrol.current_position))
-    blue_patrol.stock_history.append([blue_patrol.get_stock(), 0])
 
     combat_log = []
 
