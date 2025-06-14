@@ -1,9 +1,19 @@
 import numpy as np
 from math import dist
+
+# Configure logging
+import logging
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+logging.basicConfig(
+    filename='simulation.log',        # Log file name
+    level=logging.INFO,               # Log level (INFO, DEBUG, etc.)
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
+
+# Open config file
 import os
 import yaml
-
-# Load config
 yaml_path = os.path.join(os.path.dirname(__file__), "../config/simulation.yaml")
 with open(yaml_path, "r") as f:
     config = yaml.safe_load(f)
@@ -24,7 +34,7 @@ class Patrol:
         self.patrol_distance = 0
         self.shots = 0
         self.hostiles_killed = 0
-        self.terrain_change_interval = np.random.randint(1, 11)
+        self.terrain_change_interval = np.random.randint(10)
         self.terrain_change_counter = 0
         self.current_terrain = np.random.choice(list(terrain_library.keys()))
         self.terrain_history = [self.current_terrain]
@@ -50,36 +60,54 @@ class Patrol:
         self.exhaustion_data = []
 
     def move(self, move_distance, deviation):
+        
         self.direction = (self.direction + np.random.uniform(-deviation, deviation)) % 360
-        # Calculate new position
+        traveled = move_distance
         x = self.current_position[0] + move_distance * np.cos(np.radians(self.direction))
         y = self.current_position[1] + move_distance * np.sin(np.radians(self.direction))
         x = np.clip(x, 0, map_size)
         y = np.clip(y, 0, map_size)
-        new_position = [x, y]
+        new_position = [x,y]
         traveled = dist(self.current_position, new_position)
+
         # Edge bounce logic
         bounced = False
         if x <= 0:
+            logging.debug(f"Bounce off west wall at {new_position}")
             self.direction = 0 + np.random.uniform(-deviation, deviation)
             bounced = True
         elif x >= map_size:
+            logging.debug(f"Bounce off east wall at {new_position}")
             self.direction = 180 + np.random.uniform(-deviation, deviation)
             bounced = True
-        if y <= 0:
-            self.direction = 90 + np.random.uniform(-deviation, deviation)
-            bounced = True
-        elif y >= map_size:
-            self.direction = 270 + np.random.uniform(-deviation, deviation)
-            bounced = True
+
+        # Catches the edge case when the patrol is directly on a corner.
+        if bounced: 
+            if y <= 0:
+                logging.debug(f"Bounce off south-west corner at {new_position}")
+                self.direction = 45 + np.random.uniform(-deviation, deviation)
+            elif y >= map_size:
+                logging.debug(f"Bounce off north-east corner at {new_position}")
+                self.direction = 225 + np.random.uniform(-deviation, deviation)
+        else:
+            if y <= 0:
+                logging.debug(f"Bounce off south wall at {new_position}")
+                self.direction = 90 + np.random.uniform(-deviation, deviation)
+                bounced = True
+            elif y >= map_size:
+                logging.debug(f"Bounce off north wall at {new_position}")
+                self.direction = 270 + np.random.uniform(-deviation, deviation)
+                bounced = True
+
         if bounced:
             # Move again in the new direction to use the full move distance.
-            x = self.current_position[0] + move_distance * np.cos(np.radians(self.direction))
-            y = self.current_position[1] + move_distance * np.sin(np.radians(self.direction))
+            x = self.current_position[0] + (move_distance-traveled) * np.cos(np.radians(self.direction))
+            y = self.current_position[1] + (move_distance-traveled) * np.sin(np.radians(self.direction))
             x = np.clip(x, 0, map_size)
             y = np.clip(y, 0, map_size)
-            new_position = [x, y]
-            traveled += dist(self.current_position, new_position)
+            traveled += dist(new_position, [x,y])
+
+        new_position = [float(x), float(y)]
         self.patrol_distance += traveled
         self.move_speed = traveled 
         self.current_position = new_position
@@ -159,7 +187,7 @@ class Patrol:
             exhaustion_threshold = self.get_exhaustion_threshold()
             soldier['exhaustion_level'] = average_power_output / exhaustion_threshold if exhaustion_threshold > 0 else 0
 
-        self.squad_exhaustion = np.mean([s['exhaustion_level'] for s in data])
+        self.squad_exhaustion = float(np.mean([s['exhaustion_level'] for s in data]))
         if self.full_log:
             self.exhaustion_data.append(self.squad_exhaustion)
         return 
@@ -194,15 +222,19 @@ class Patrol:
         """
         Change the terrain type for the patrol.
         """
-        self.terrain_change_counter += 1
         if self.terrain_change_counter >= self.terrain_change_interval:
             terrain_roll = np.random.randint(1, 101)
             for terrain_name, values in terrain_library.items():
-                if values[1] <= terrain_roll:
+                prob = int(values[1] * 100)
+                if terrain_roll <= prob :
                     self.current_terrain = terrain_name
+                    print(f"changing terrain to: {terrain_name} based on roll: {float(terrain_roll)} < prob: {prob}")
                     break
+                else:
+                    terrain_roll -= prob
+            self.terrain_change_counter = 0
+            self.terrain_change_interval = np.random.randint(10)
 
-        self.terrain_change_counter = 0
-        self.terrain_change_interval = np.random.randint(1, 11)
+        self.terrain_change_counter += 1    
         if self.full_log:
             self.terrain_history.append(self.current_terrain)
