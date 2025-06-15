@@ -101,9 +101,13 @@ def spawn_red_patrol(params, sim_time):
         params (dict): Simulation parameters including red stock.
     Returns:
         dict: A dictionary representing the red patrol with its stock and position."""
+    local_map_size = params.get("map_size", map_size)
     return {
         'stock': params['red_stock'],
-        'current_position': (np.random.uniform(0, map_size), np.random.uniform(0, map_size)),
+        'current_position': (
+            np.random.uniform(0, local_map_size),
+            np.random.uniform(0, local_map_size)
+        ),       
         'stock_history': [(params['red_stock'], 0)],
         'spawn_time': sim_time,
         'removal_time': None,

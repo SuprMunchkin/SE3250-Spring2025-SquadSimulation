@@ -23,8 +23,13 @@ terrain_library = config["terrain_library"]
 
 class Patrol:
     def __init__(self, params, full_log=True):
+        global map_size
         self.full_log = full_log
-        self.current_position = [np.random.uniform(0, map_size), np.random.uniform(0, map_size)]
+        map_size = params.get("map_size", map_size)
+        self.current_position = [
+            np.random.uniform(0, map_size), 
+            np.random.uniform(0, map_size)
+        ]
         self.position_history = [self.current_position]
         self.direction = np.random.uniform(0, 360)
         self.move_speed = 0 # m/dt
@@ -232,7 +237,7 @@ class Patrol:
                 prob = int(values[1] * 100)
                 if terrain_roll <= prob :
                     self.current_terrain = terrain_name
-                    print(f"changing terrain to: {terrain_name} based on roll: {float(terrain_roll)} < prob: {prob}")
+                    logging.debug(f"changing terrain to: {terrain_name} based on roll: {float(terrain_roll)} < prob: {prob}")
                     break
                 else:
                     terrain_roll -= prob

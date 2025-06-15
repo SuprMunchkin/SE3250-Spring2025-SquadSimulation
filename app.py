@@ -26,6 +26,7 @@ def run_simulation_endpoint():
     blue_stock = int(request.args.get("blue_stock", 10))
     red_stock = int(request.args.get("red_stock", 40))
     direction_deviation = int(request.args.get("direction_deviation", 10))
+    map_size = int(request.args.get("map_size", 2000))
     armor_type = request.args.get("armor_type", "Basilone Ballistic Insert")
     environment = request.args.get("environment", "Krulak’s Three Block War")
     params = {
@@ -33,7 +34,8 @@ def run_simulation_endpoint():
         "red_stock": red_stock,
         "direction_deviation": direction_deviation,
         "armor_type": armor_type,
-        "environment": environment
+        "environment": environment,
+        "map_size": map_size
     }
     results = run_simulation(params, full_log=True)
     #pp.pprint(results)

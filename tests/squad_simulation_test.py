@@ -8,7 +8,8 @@ def default_params():
         "red_stock": 20,
         "direction_deviation": 10,
         "armor_type": "Basilone Ballistic Insert",
-        "environment": "Krulak’s Three Block War"
+        "environment": "Krulak’s Three Block War",
+        "map_size": 2000
     }
 
 def test_run_simulation_returns_dict(default_params):

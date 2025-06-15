@@ -44,11 +44,15 @@
             <label for="blue_stock">Blue Stock:</label>
             <input type="number" id="blue_stock" name="blue_stock" value="10" min="1" max="20">
             <br>
-            <label for="red_stock">red Stock:</label>
+            <label for="red_stock">Red Stock:</label>
             <input type="number" id="red_stock" name="red_stock" value="10" min="1" max="40">
             <br>
             <label for="direction_deviation">Direction Deviation:</label>
             <input type="number" id="direction_deviation" name="direction_deviation" value="10" min="0" max="45" step="5">
+            <br>
+            <label for="mapSizeSlider">Map Size:</label>
+            <input type="range" id="mapSizeSlider" name="map_size" min="1000" max="5000" value="2000" step="500">
+            <span id="mapSizeValue">2000</span> px
         </div>
         <div class="form-group">
             <label for="armor_type">Armor Type:</label>
@@ -68,139 +72,106 @@
         <div class="form-group">
             <button type="submit">Run Simulation</button>
         </div>
+        <div id="simulation-container">
+            <pre id="results"></pre>
+            <canvas id="mapCanvas" width="1000" height="1000" style="border:1px solid #000;"></canvas>
+        </div>
     </form>
-    <div id="simulation-container">
-        <canvas id="simulation-canvas" width="1000" height="1000"></canvas>
-    </div>
-    <pre id="results"></pre>
+
     <script>
-        const canvas = document.getElementById('simulation-canvas');
+        const slider = document.getElementById('mapSizeSlider');
+        const valueDisplay = document.getElementById('mapSizeValue');
+        const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const resultsElement = document.getElementById('results');
-        let path = [];
-        let combats = [];
-        let index = 0;
-        let animationFrameId = null;
-        let frameDelay = 5; // Number of frames to wait before moving to the next point
-        let frameCounter = 0;
 
-        function drawUnit(x, y) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+        let mapSize = parseInt(slider.value);
 
-            // Draw combat locations that have already occurred
-            combats.slice(0, index).forEach(([cx, cy]) => {
-                ctx.fillStyle = 'red'; // Red for hostile unit
-                ctx.beginPath();
-                ctx.arc(cx * canvas.width, cy * canvas.height, 5, 0, Math.PI * 2); // Small red circle
-                ctx.fill();
-            });
+        valueDisplay.textContent = mapSize;
 
-            // Draw the good unit
-            ctx.fillStyle = 'blue'; // Blue for friendly unit
-            ctx.beginPath();
-            ctx.arc(x * canvas.width, y * canvas.height, 10, 0, Math.PI * 2); // Larger blue circle
-            ctx.fill();
-        }
+        slider.addEventListener('input', function () {
+            mapSize = parseInt(this.value);
+            valueDisplay.textContent = mapSize;
+            drawMap();
+        });
 
-        function moveUnit() {
-            if (index >= path.length) {
-                cancelAnimationFrame(animationFrameId); // Stop the animation
-                return;
-            }
-
-            // Increment the frame counter and only move the unit after the delay
-            if (frameCounter === 0) {
-                const [x, y] = path[index];
-                drawUnit(x, y);
-
-                // Check if a combat occurred at this location
-                if (combats[index]) {
-                    combats.push(combats[index]); // Add combat location dynamically
-                }
-
-                index++;
-            }
-
-            frameCounter = (frameCounter + 1) % frameDelay; // Reset the counter after the delay
-            animationFrameId = requestAnimationFrame(moveUnit); // Schedule the next frame
-        }
-
-        function startSimulation() {
-            const form = document.getElementById('simulation-form');
-            const formData = new FormData(form);
-            const params = new URLSearchParams(formData).toString();
-            fetch(`/run_simulation?${params}`)
-                .then(response => response.json())
-                .then(data => {
-                    // Display the results
-                    drawPath(data.blue.position_history, data.red_patrols);
-                    document.getElementById('results').textContent = formatResults(data);
-                });
-        }
-
-        function drawPath(bluePath, redPatrols) {
+        function drawMap() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const x = (canvas.width - mapSize) / 2;
+            const y = (canvas.height - mapSize) / 2;
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, mapSize, mapSize);
+        }
+
+        function drawSimulation(bluePath, redPatrols) {
+            drawMap();
+
+            const scale = canvas.width / mapSize;
 
             // Draw blue path
             if (bluePath && bluePath.length > 0) {
                 ctx.strokeStyle = 'blue';
                 ctx.beginPath();
                 bluePath.forEach(([x, y], i) => {
-                    let sx = x / 2000 * canvas.width;
-                    let sy = (2000-y) / 2000 * canvas.height;
+                    const sx = x * scale;
+                    const sy = (mapSize - y) * scale;
                     if (i === 0) ctx.moveTo(sx, sy);
                     else ctx.lineTo(sx, sy);
                 });
                 ctx.stroke();
 
-                // Draw blue unit as a blue circle at its last position
-                let [bx, by] = bluePath[bluePath.length - 1];
-                let bsx = bx / 2000 * canvas.width;
-                let bsy = (2000-by) / 2000 * canvas.height;
+                // Draw current blue position (last point)
+                const [bx, by] = bluePath[bluePath.length - 1];
                 ctx.fillStyle = 'blue';
                 ctx.beginPath();
-                ctx.arc(bsx, bsy, 5, 0, Math.PI * 2);
+                ctx.arc(bx * scale, (mapSize - by) * scale, 6, 0, Math.PI * 2);
                 ctx.fill();
             }
 
-            // Draw all red patrols as squares
-            if (redPatrols && redPatrols.length > 0) {
-                redPatrols.forEach((patrol) => {
-                    const [x, y] = patrol.current_position;
-                    let sx = x / 2000 * canvas.width;
-                    let sy = (2000-y) / 2000 * canvas.height;
-                    ctx.save();
+            // Draw red patrols
+            redPatrols?.forEach(patrol => {
+                const [x, y] = patrol.current_position;
+                const sx = x * scale;
+                const sy = (mapSize - y) * scale;
+
+                if (patrol.removal_time === null) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(sx - 6, sy - 6, 12, 12);
+                } else {
                     ctx.strokeStyle = 'red';
-                    ctx.lineWidth = 2;
-                    if (patrol.removal_time === null) {
-                        // Solid square for active
-                        ctx.fillStyle = 'red';
-                        ctx.fillRect(sx - 6, sy - 6, 12, 12);
-                    } else {
-                        // Hollow square for defeated
-                        ctx.clearRect(sx - 6, sy - 6, 12, 12); // optional, to clear background
-                        ctx.strokeRect(sx - 6, sy - 6, 12, 12);
-                    }
-                    ctx.restore();
-                });
-            }
+                    ctx.strokeRect(sx - 6, sy - 6, 12, 12);
+                }
+            });
         }
 
-        function stopSimulation() {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId); // Cancel the animation
-                animationFrameId = null;
-            }
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+        function startSimulation() {
+            const form = document.getElementById('simulation-form');
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData).toString();
+
+            fetch(`/run_simulation?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    const bluePath = data.blue.position_history || [];
+                    const redPatrols = data.red_patrols || [];
+                    drawSimulation(bluePath, redPatrols);
+                    resultsElement.textContent = formatResults(data);
+                })
+                .catch(error => {
+                    resultsElement.textContent = `❌ Simulation failed: ${error}`;
+                });
         }
 
         function formatResults(data) {
-            let output = `👥 Blue Remaining: ${data.blue.stock}\n`;
-            output += `🔴 Red Remaining: ${data.red.stock}\n`;
-            output += ` Blue Distance Traveled: (${data.blue.patrol_distance})\n`;
-            output += ` Blue Time on Patrol: (${data.blue.patrol_time})\n`;
-            return output;
+            return `👥 Blue Remaining: ${data.blue.stock}
+    🔴 Red Remaining: ${data.red.stock}
+    Blue Distance Traveled: (${data.blue.patrol_distance})
+    Blue Time on Patrol: (${data.blue.patrol_time})`;
         }
+
+        // Initial draw
+        drawMap();
     </script>
 </body>
 </html>
