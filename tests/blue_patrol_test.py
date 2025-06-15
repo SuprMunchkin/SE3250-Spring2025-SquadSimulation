@@ -37,6 +37,11 @@ def test_exhaustion_threshold(patrol):
     assert result < 546.9
     assert result > 546.8
 
+    patrol.patrol_time = 1
+    result = patrol.get_exhaustion_threshold()
+    assert result > 3485
+    assert result < 3486
+
 def test_is_exhausted_true(patrol):
     patrol.patrol_time = 120
     patrol.squad_exhaustion = 600
@@ -68,11 +73,75 @@ def test_update_terrain(patrol):
     assert patrol.current_terrain == 'light_brush'
     assert patrol.terrain_change_counter == 1
     assert patrol.terrain_change_interval == 1
+    # Make sure all terrain types show up when the simulation goes for long enough.
     for _ in range(1000):
         patrol.terrain_change_interval = 0
         patrol._update_terrain()
     assert len(patrol.terrain_history) == 1002
     assert set(patrol.terrain_history) == set(terrain_lib)
+
+def test_set_exhaustion(patrol):
+        patrol.squad_data = [{
+                'soldier': 75,
+                'load': (20.6497926 + 8.3043963255),
+                'joules_expended': 0, 
+                'exhaustion_level': 0,
+                'removal_time': None,
+                'exhausted': False,
+                'Killed': False
+            }, {
+                'soldier': 80,
+                'load': (20.6497926 + 8.3043963255),
+                'joules_expended': 0, 
+                'exhaustion_level': 0,
+                'removal_time': None,
+                'exhausted': False,
+                'Killed': False
+            }]
+        patrol.current_terrain = 'loose_sand' 
+        patrol.move_speed = 1/2.1
+        patrol.grade = 1
+        patrol.patrol_time = 1
+        patrol.set_exhaustion()
+        assert patrol.squad_data[0]['joules_expended'] > 15000
+        assert patrol.squad_data[0]['joules_expended'] < 15500
+        assert patrol.squad_data[1]['joules_expended'] > 15500
+        assert patrol.squad_data[1]['joules_expended'] < 16000
+        assert patrol.squad_data[0]['exhaustion_level'] < 0.07
+        assert patrol.squad_data[0]['exhaustion_level'] > 0.06
+        assert patrol.squad_data[1]['exhaustion_level'] < 0.07
+        assert patrol.squad_data[1]['exhaustion_level'] > 0.06
+        assert patrol.squad_data[0]['joules_expended']  < patrol.squad_data[1]['joules_expended']
+        assert patrol.squad_data[0]['exhaustion_level'] < patrol.squad_data[1]['exhaustion_level']
+        assert patrol.exhaustion_data[0][0] == 0
+        assert patrol.exhaustion_data[0][1] == 0
+        assert patrol.exhaustion_data[1][0] < 0.07
+        assert patrol.exhaustion_data[1][0] > 0.06
+        assert patrol.exhaustion_data[1][1] < 0.07
+        assert patrol.exhaustion_data[1][1] > 0.06
+
+        patrol.grade = -2
+        patrol.set_exhaustion()
+        patrol.patrol_time += 1
+        assert patrol.squad_data[0]['joules_expended'] > 27000
+        assert patrol.squad_data[0]['joules_expended'] < 27500
+        assert patrol.squad_data[0]['exhaustion_level'] < 0.12
+        assert patrol.squad_data[0]['exhaustion_level'] > 0.11
+        assert patrol.squad_data[0]['joules_expended']  < patrol.squad_data[1]['joules_expended']
+        assert patrol.squad_data[0]['exhaustion_level'] < patrol.squad_data[1]['exhaustion_level']
+        assert patrol.exhaustion_data[patrol.patrol_time][0] < 0.12
+        assert patrol.exhaustion_data[patrol.patrol_time][0] > 0.11
+
+        patrol.grade = 10
+        patrol.set_exhaustion()
+        patrol.patrol_time += 1
+        assert patrol.squad_data[0]['joules_expended'] > 61750
+        assert patrol.squad_data[0]['joules_expended'] < 62250
+        assert patrol.squad_data[0]['exhaustion_level'] < 0.17
+        assert patrol.squad_data[0]['exhaustion_level'] > 0.16
+        assert patrol.squad_data[0]['joules_expended']  < patrol.squad_data[1]['joules_expended']
+        assert patrol.squad_data[0]['exhaustion_level'] < patrol.squad_data[1]['exhaustion_level']
+
 
 def test_move(patrol):
     #Testing simple move logic

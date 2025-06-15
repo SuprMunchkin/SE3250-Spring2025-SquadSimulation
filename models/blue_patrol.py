@@ -38,6 +38,7 @@ class Patrol:
         self.terrain_change_counter = 0
         self.current_terrain = np.random.choice(list(terrain_library.keys()))
         self.terrain_history = [self.current_terrain]
+        self.grade = np.random.normal(0, 3)
         armor = params['armor_type']
         if armor not in armor_profiles:
             raise ValueError(f"Armor type '{armor}' not found in armor profiles.")
@@ -57,7 +58,7 @@ class Patrol:
             })
         self.casualties = []    #stores the data for dead and exhausted soldiers
         self.stock_history = [[self.get_stock(), 0]]
-        self.exhaustion_data = []
+        self.exhaustion_data = [[s['exhaustion_level'] for s in self.squad_data]]
 
     def move(self, move_distance, deviation):
         
@@ -156,9 +157,9 @@ class Patrol:
         """
         # Calculate exhaustion threshold based on patrol time (in minutes)
         data = self.squad_data
-        speed = self.move_speed
-        grade = np.random.normal(0, 3) 
-        terrain_factor = terrain_library[self.current_terrain][0] # Terrain factor from the library
+        speed = self.move_speed 
+        terrain_factor = terrain_library[self.current_terrain][0]
+        grade = self.grade
         downhill_adjustment = 1 if grade < 0 else 0 
 
         for soldier in data:
@@ -187,9 +188,11 @@ class Patrol:
             exhaustion_threshold = self.get_exhaustion_threshold()
             soldier['exhaustion_level'] = average_power_output / exhaustion_threshold if exhaustion_threshold > 0 else 0
 
-        self.squad_exhaustion = float(np.mean([s['exhaustion_level'] for s in data]))
+
+        exhaustion_data = [s['exhaustion_level'] for s in data]
         if self.full_log:
-            self.exhaustion_data.append(self.squad_exhaustion)
+            self.exhaustion_data.append(exhaustion_data)
+        self.squad_exhaustion = float(np.mean(exhaustion_data))
         return 
   
     def get_exhaustion_threshold(self):
@@ -222,6 +225,7 @@ class Patrol:
         """
         Change the terrain type for the patrol.
         """
+        self.grade = np.random.normal(0, 3)
         if self.terrain_change_counter >= self.terrain_change_interval:
             terrain_roll = np.random.randint(1, 101)
             for terrain_name, values in terrain_library.items():

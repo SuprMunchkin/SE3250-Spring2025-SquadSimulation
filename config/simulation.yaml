@@ -1,6 +1,6 @@
 # Default values for the parameters of the simulation.
 map_size: 2000 # Given in meters
-stop_time: 480 # Given in minutes. 480 = 8 hours (default value) 
+stop_time: 480 # Given in minutes. 480 = 8 hours (default value)
 
 fire_rates: 
   # Given in aimed shots per minute.
