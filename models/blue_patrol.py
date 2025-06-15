@@ -148,7 +148,7 @@ class Patrol:
             'removal_time': self.removal_time,
             'position_history': pos_hist,
             'stock_history': stock_hist,
-            'exhaustion_data': self.squad_data,
+            'exhaustion_data': self.exhaustion_data,
             'patrol_time': self.patrol_time,
             'patrol_distance': self.patrol_distance,
             'shots': self.shots,
@@ -195,6 +195,7 @@ class Patrol:
 
 
         exhaustion_data = [s['exhaustion_level'] for s in data]
+        exhaustion_data.insert(0, self.get_exhaustion_threshold())
         if self.full_log:
             self.exhaustion_data.append(exhaustion_data)
         self.squad_exhaustion = float(np.mean(exhaustion_data))
