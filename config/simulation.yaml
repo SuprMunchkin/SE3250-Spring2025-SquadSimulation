@@ -12,11 +12,11 @@ terrain_library:
   # Type: (movement cost, probability)
   # Probability should sum to 1.0 across all terrain types.
   # Movement cost is calibrated to the Pandolf-Santee model and should not be changed.
-  light_brush: [1.2, 0.4]
+  light_brush: [1.2, 0.5]
   heavy_brush: [1.5, 0.20]
-  packed_dirt: [1.1, 0.20]
+  packed_dirt: [1.1, 0.15]
   loose_sand: [2.1, 0.10]
-  paved: [1.0, 0.10]
+  paved: [1.0, 0.5]
 
 threat_library:
   # Format: [a, b, c] 
