@@ -218,7 +218,7 @@ class Patrol:
     def step(self, deviation):
         self.direction = (self.direction + np.random.uniform(-deviation, deviation)) % 360
         # Calculate move speed and distance. Adjust speed based on terrain factor
-        move_speed = np.random.uniform(0.5, 1.4) / terrain_library[self.current_terrain][0]  
+        move_speed = np.random.uniform(0.8, 1.5) / terrain_library[self.current_terrain][0]  
         # Adjust speed based on exhaustion level
         move_speed *= ( 1 - ( self.squad_exhaustion / (2 * self.get_exhaustion_threshold()) ) )
         # Multiply by 60 to convert to meters per minute because the simulation runs in minutes.
