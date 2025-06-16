@@ -115,10 +115,11 @@ def test_set_exhaustion(patrol):
         assert patrol.squad_data[0]['exhaustion_level'] < patrol.squad_data[1]['exhaustion_level']
         assert patrol.exhaustion_data[0][0] == 0
         assert patrol.exhaustion_data[0][1] == 0
-        assert patrol.exhaustion_data[1][0] < 0.07
-        assert patrol.exhaustion_data[1][0] > 0.06
+        # These indicies are off by 1 because the threshold data is stored in slot 0.
         assert patrol.exhaustion_data[1][1] < 0.07
         assert patrol.exhaustion_data[1][1] > 0.06
+        assert patrol.exhaustion_data[1][2] < 0.07
+        assert patrol.exhaustion_data[1][2] > 0.06
 
         patrol.grade = -2
         patrol.set_exhaustion()
@@ -129,8 +130,8 @@ def test_set_exhaustion(patrol):
         assert patrol.squad_data[0]['exhaustion_level'] > 0.11
         assert patrol.squad_data[0]['joules_expended']  < patrol.squad_data[1]['joules_expended']
         assert patrol.squad_data[0]['exhaustion_level'] < patrol.squad_data[1]['exhaustion_level']
-        assert patrol.exhaustion_data[patrol.patrol_time][0] < 0.12
-        assert patrol.exhaustion_data[patrol.patrol_time][0] > 0.11
+        assert patrol.exhaustion_data[patrol.patrol_time][1] < 0.12
+        assert patrol.exhaustion_data[patrol.patrol_time][1] > 0.11
 
         patrol.grade = 10
         patrol.set_exhaustion()
