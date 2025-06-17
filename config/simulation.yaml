@@ -21,7 +21,8 @@ terrain_library:
 threat_library:
   # Format: [a, b, c] 
   # contstants a projectile velocity function: v(x) = ax^2 + bx + c 
-  # where x is the distance in meters between the shooter and target.
+  # where x is the distance in meters between the shooter and target
+  # and velocity is in feet/second
   Garnet: [0.0011, -2.9354, 2844.8]
   Amethyst: [0.0017, -4.2007, 3167.4]
   Aquamarine: [0.001, -2.8943, 2836.6]

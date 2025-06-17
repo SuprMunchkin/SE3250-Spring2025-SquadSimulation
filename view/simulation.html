@@ -52,7 +52,7 @@
             <br>
             <label for="mapSizeSlider">Map Size:</label>
             <input type="range" id="mapSizeSlider" name="map_size" min="1000" max="5000" value="2000" step="500">
-            <span id="mapSizeValue">2000</span> px
+            <span id="mapSizeValue">2000</span> m
         </div>
         <div class="form-group">
             <label for="armor_type">Armor Type:</label>
@@ -73,9 +73,9 @@
             <button type="submit">Run Simulation</button>
         </div>
         <div id="simulation-container">
-            <pre id="results"></pre>
             <canvas id="mapCanvas" width="1000" height="1000" style="border:1px solid #000;"></canvas>
         </div>
+        <pre id="results"></pre>
     </form>
 
     <script>
